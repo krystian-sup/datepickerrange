@@ -1,0 +1,2866 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DateRangeDialog — koncepty 1–3</title>
+<style>
+  :root{--navy:#0a0a6b;--text:#1b1b2b;--muted:#6b6f80;--line:#d7dae3;--focus:#2b3fcf;--chip-on:#dfe5fd}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--text);display:flex;flex-direction:column;background:#fff}
+  header{display:flex;align-items:center;gap:24px;padding:10px 20px;border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow-x:auto;white-space:nowrap}
+  header h1{font-size:16px;font-weight:600;margin:0}
+  /* Wszystkie trzy przełączniki wyglądają tak samo: etykieta + grupa segmentów */
+  [role=tab]{height:28px;padding:0 10px;border:0;border-radius:6px;background:none;font:inherit;font-size:13px;color:var(--text);cursor:pointer}
+  [role=tab][aria-selected=true]{background:var(--chip-on);color:var(--navy);font-weight:600}
+  [role=tab]:not([aria-selected=true]):hover,.dir button:not([aria-checked=true]):hover{background:#f1f2f6}
+  [role=tab]:focus-visible,.dir button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .dir{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);flex:none}
+  .dir .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;padding:2px}
+  .dir button{height:28px;padding:0 10px;border:0;border-radius:6px;background:none;font:inherit;font-size:13px;color:var(--text);cursor:pointer}
+  .dir button[aria-checked=true]{background:var(--chip-on);color:var(--navy);font-weight:600}
+  main{flex:1;min-height:0;position:relative}
+  iframe{border:0;width:100%;height:100%;display:block}
+  main.mobile{background:#e9ebf1;display:flex;flex-direction:column;align-items:center;padding:24px 16px;overflow:auto}
+  /* Urządzenie: pełny ekran telefonu = pasek statusu + paski Safari + widok strony (iframe) */
+  .device{display:contents}
+  .sys{display:none}
+  main.mobile .device{display:flex;flex-direction:column;margin:auto auto 0;flex:none;background:#f7f7f8;overflow:hidden;box-shadow:0 0 0 10px #1c1d29,0 20px 50px rgba(0,0,0,.25);border-radius:44px;width:390px;height:844px}
+  main.m320 .device{width:320px;height:568px;border-radius:14px}
+  main.mobile .sys{display:flex;align-items:center;flex:none;font-size:12px;color:#1b1b2b;background:#f7f7f8}
+  .sys-status{height:47px;padding:14px 30px 0;justify-content:space-between;font-weight:600;font-size:15px}
+  main.m320 .sys-status{height:20px;padding:0 6px;font-size:12px}
+  .sys-icons{display:flex;align-items:center;gap:6px}
+  main.m320 .sys-icons{gap:4px;transform:scale(.8);transform-origin:right center}
+  /* Safari w aktualnym iOS (układ Compact, domyślny): pływający pasek na dole — wstecz | pole adresu | karty */
+  .sys-bar{height:56px;padding:0 12px;gap:8px;justify-content:space-between}
+  .sys-bar .circ{width:44px;height:44px;border-radius:50%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.12),inset 0 0 0 .5px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;color:#1b1b2b;flex:none}
+  .sys-bar .pill{flex:1;height:44px;border-radius:22px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.12),inset 0 0 0 .5px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:#1b1b2b;font-size:15px;min-width:0}
+  .sys-bar .pill b{font-weight:400}
+  main.m320 .sys-bar{padding:0 8px;gap:6px}
+  main.m320 .sys-bar .pill{font-size:14px;padding:0 12px}
+  .sys-home{height:34px;justify-content:center}
+  .sys-home::before{content:"";width:134px;height:5px;border-radius:3px;background:#1b1b2b}
+  main.m320 .sys-home{display:none !important}
+  .frame-cap{display:none;margin:22px auto auto;font-size:12px;color:#6b6f80;text-align:center}
+  main.mobile .frame-cap{display:block}
+  main.m320 iframe{width:320px !important;height:492px !important}
+  main.mobile iframe{width:390px;height:707px;background:#fff;flex:none}
+  .diff{position:absolute;inset:0;overflow:auto;padding:28px 40px 60px;font-size:14px;line-height:1.5}
+  .diff[hidden]{display:none}
+  .diff h2{font-size:20px;margin:0 0 6px}
+  .diff h3{font-size:16px;margin:28px 0 10px}
+  .diff p{margin:0 0 12px;max-width:900px;color:#33364a}
+  table{border-collapse:collapse;width:100%;max-width:1200px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:#f6f7fb;font-weight:600}
+  td:first-child{font-weight:600;width:200px}
+  ul{margin:0 0 12px;padding-left:20px;max-width:900px}
+  li{margin-bottom:4px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}
+  .ok{background:#e3f4ea;color:#1f6b3a}.no{background:#fde7ec;color:#a3122f}.mid{background:#fff2d9;color:#8a5a00}
+</style>
+</head>
+<body>
+<header>
+  <h1>DateRangeDialog</h1>
+  <div class="dir">
+    <span id="tabLbl">Koncept</span>
+    <div class="seg" role="tablist" aria-labelledby="tabLbl">
+      <button role="tab" id="t-k1" aria-controls="panel" aria-selected="false" data-k="k1">1 · pola do wpisania</button>
+      <button role="tab" id="t-k2" aria-controls="panel" aria-selected="false" data-k="k2">2 · pola tylko do odczytu</button>
+      <button role="tab" id="t-k3" aria-controls="panel" aria-selected="false" data-k="k3">3 · tekst w nagłówku</button>
+    </div>
+  </div>
+  <div class="dir" id="bpWrap" style="margin-left:auto">
+    <span id="bpLbl">Breakpoint</span>
+    <div class="seg" role="radiogroup" aria-labelledby="bpLbl">
+      <button type="button" role="radio" data-bp="desktop">Desktop</button>
+      <button type="button" role="radio" data-bp="mobile">Mobile 390</button>
+      <button type="button" role="radio" data-bp="mobile320">Mobile 320</button>
+    </div>
+  </div>
+  <div class="dir" id="dirWrap">
+    <span id="dirLbl">Direction</span>
+    <div class="seg" role="radiogroup" aria-labelledby="dirLbl">
+      <button type="button" role="radio" data-dir="past" title="Historia operacji: bieżący miesiąc po prawej">Past</button>
+      <button type="button" role="radio" data-dir="future" title="Przelewy planowane: bieżący miesiąc po lewej">Future</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="device" aria-hidden="false">
+    <div class="sys sys-status" aria-hidden="true"><span>9:41</span><span class="sys-icons"><svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg><svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><path d="M7.5 2.2c2.1 0 4 .8 5.5 2.1l1.2-1.3A9.6 9.6 0 0 0 7.5.4 9.6 9.6 0 0 0 .8 3l1.2 1.3a7.9 7.9 0 0 1 5.5-2.1Zm0 3.4c1.2 0 2.3.4 3.1 1.2l1.2-1.3a6.2 6.2 0 0 0-8.6 0l1.2 1.3c.8-.8 1.9-1.2 3.1-1.2Zm0 3.3c.5 0 .9.2 1.2.5L7.5 10.9 6.3 9.4c.3-.3.7-.5 1.2-.5Z"/></svg><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="1.8" fill="currentColor"/><path d="M23 4v4c.8-.3 1.3-1.1 1.3-2S23.8 4.3 23 4Z" fill="currentColor" opacity=".4"/></svg></span></div>
+    <iframe id="panel" title="Prototyp" role="tabpanel"></iframe>
+    <div class="sys sys-bar" aria-hidden="true"><span class="circ"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></span><span class="pill"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M8 9.5h8M8 13h5"/></svg><b>www.test.pl</b><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M19 4v4.5h-4.5"/></svg></span><span class="circ"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/></svg></span></div>
+    <div class="sys sys-home" aria-hidden="true"></div>
+  </div>
+  <p class="frame-cap" id="frameCap"></p>
+</main>
+<script type="text/plain" id="src-k1"><!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DateRangeDialog — prototyp</title>
+<style>
+  :root{
+    --navy:#0a0a6b; --navy-ink:#13137a; --text:#1b1b2b; --muted:#6b6f80;
+    --line:#c9ccd6; --line-strong:#8a8fa3; --focus:#2b3fcf; --error:#e0173f;
+    --band:#cfd8ea; --band-preview:#e3e9f4; --hover:#f3e3f7;
+    --chip-on:#dfe5fd; --chip-on-line:#4b5bd6; --page:#f4f5f8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--text);background:var(--page)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* --- Strona w tle --- */
+  .page{max-width:960px;margin:0 auto;padding:40px 24px}
+  .page h1{font-size:26px;font-weight:600;margin:0 0 20px}
+  .toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px}
+  .trigger{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 12px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;font:inherit;font-size:15px;color:var(--text);cursor:pointer;transition:border-color .15s ease-in-out}
+  .trigger:hover{border-color:var(--navy)}
+  .trigger:focus-visible,.ftag-x:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .trigger svg{color:var(--navy)}
+  .ftag{display:inline-flex;align-items:center;gap:2px;height:32px;padding:0 4px 0 12px;border-radius:16px;background:var(--chip-on);font-size:14px;color:var(--text)}
+  .ftag[hidden]{display:none}
+  .ftag b{font-weight:600;margin-right:4px}
+  .ftag-x{width:28px;height:28px;border:0;border-radius:50%;background:none;color:var(--navy);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color .15s ease-in-out}
+  .ftag-x:hover{background:rgba(10,10,107,.1)}
+  .count{font-size:13px;color:var(--muted);margin:0 0 10px}
+  .rows .date{color:var(--muted);width:110px;flex:none}
+  .rows .name{flex:1}
+  .rows .empty-row{justify-content:center;color:var(--muted)}
+  .rows{background:#fff;border-radius:12px;padding:8px 0}
+  .rows div{display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #eef0f4;font-size:14px}
+  .rows div>span:last-child{white-space:nowrap;padding-left:16px}
+  .rows div:last-child{border-bottom:0}
+
+  /* --- Panel stanu --- */
+  .state{position:fixed;left:16px;top:16px;width:270px;background:#1c1d29;color:#e8e9f0;border-radius:12px;padding:14px 16px;font-size:12px;line-height:1.5;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .state h2{font-size:12px;margin:0 0 8px;color:#fff;letter-spacing:.02em;display:flex;justify-content:space-between;align-items:center}
+  .state button{background:none;border:0;color:#a9acc0;cursor:pointer;font:inherit;font-size:11px}
+  .state dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+  .state dt{color:#9a9db2}
+  .state dd{margin:0;font-family:ui-monospace,Menlo,monospace;word-break:break-word}
+  .state.collapsed dl{display:none}
+
+  /* --- Scrim i dialog --- */
+  .scrim{position:fixed;inset:0;background:rgba(20,20,32,.45);display:flex;align-items:center;justify-content:center;z-index:10;padding:20px}
+  .scrim[hidden]{display:none}
+  .dialog{background:#fff;border-radius:20px;width:656px;max-width:100%;box-shadow:0 12px 40px rgba(0,0,0,.18);outline:none}
+  .body{padding:28px 36px 24px}
+
+  /* Gotowe zakresy */
+  .chips{display:flex;flex-wrap:wrap;gap:8px 8px;margin-bottom:28px}
+  .chip{height:32px;padding:0 15px;border:1px solid var(--line);border-radius:16px;background:#fff;font:inherit;font-size:14px;color:var(--text);cursor:pointer;transition:background-color .15s ease-in-out,border-color .15s ease-in-out}
+  .chip:hover{border-color:var(--line-strong)}
+  .chip[aria-checked="true"]{background:var(--chip-on);border-color:var(--chip-on-line)}
+  .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+  /* Pola dat */
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
+  .label{display:block;font-size:13px;margin-bottom:4px}   /* Input: Label → pole 4 px */
+  .field{position:relative;display:flex;align-items:center;height:40px;border:1px solid var(--line-strong);border-radius:6px;padding:0 12px;background:#fff;cursor:text;transition:border-color .15s ease-in-out,box-shadow .15s ease-in-out}
+  .field:hover{border-color:var(--text)}
+  .field.invalid{border-color:var(--error)}
+  /* Pole aktywne: ramka w kolorze primary, grubsza o 1 px (cień w środku, żeby nic się nie przesuwało) */
+  .field.active,.field.target{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}
+  .segs{display:flex;align-items:center;font-size:15px;font-variant-numeric:tabular-nums;flex:1;min-width:0}
+  .seg{padding:1px 1px;border-radius:3px;outline:none;caret-color:transparent}
+  .seg.ph{color:var(--muted)}
+  .sep{padding:0 1px}
+  .sep.ph{color:var(--muted)}
+  .field.active .seg.on{background:var(--navy);color:#fff}
+  .clear{display:none;width:26px;height:26px;margin-right:-5px;border:0;background:none;border-radius:50%;cursor:pointer;color:var(--navy);align-items:center;justify-content:center}
+  .clear:hover{background:var(--hover)}
+  .field.active.has-value .clear{display:flex}
+  .err{color:var(--error);font-size:13px;line-height:1.45;margin-top:4px;min-height:0}   /* Input: pole → ValidationText 4 px */
+  .err:empty{display:none}
+
+  /* Kalendarz */
+  .cals{display:grid;grid-template-columns:280px 280px;justify-content:space-between}
+  .cal-head{display:flex;align-items:center;height:36px;margin-bottom:10px;position:relative}
+  .cal-title{flex:1;text-align:center;font-size:17px}
+  .nav{position:absolute;top:2px;width:32px;height:32px;border:0;background:none;border-radius:50%;cursor:pointer;color:var(--navy);display:flex;align-items:center;justify-content:center}
+  .nav:hover{background:var(--hover)}
+  .nav:focus-visible{outline:2px solid var(--focus)}
+  .nav.prev{left:0}.nav.next{right:0}
+  .grid{display:grid;grid-template-columns:repeat(7,40px);row-gap:4px}
+  .wd{height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted)}
+  .cell{position:relative;height:40px;display:flex;align-items:center;justify-content:center;outline:none}
+  .cell.empty{pointer-events:none}
+  .band{position:absolute;top:2px;bottom:2px;left:0;right:0;background:var(--band)}
+  .band.preview{background:var(--band-preview)}
+  .cell.start .band{left:50%}
+  .cell.end .band{right:50%}
+  .cell.start.end .band{display:none}
+  .day{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:15px;color:var(--navy-ink);cursor:pointer;transition:background-color .15s ease-in-out,color .15s ease-in-out}
+  .day::before{content:"";position:absolute;inset:-2px;border-radius:50%;background:var(--hover);opacity:0;transition:opacity .15s ease-in-out;z-index:-1}
+  .cell:hover .day::before,.cell.kbd-hover .day::before{opacity:1}
+  .day span{position:relative}
+  .cell.start .day,.cell.end .day{background:var(--navy);color:#fff}
+  .cell.start .day::before,.cell.end .day::before{display:none}
+  /* Dzisiejsza data: podpis „dziś” pod numerem dnia (desktop i mobile) */
+  .cell.today .day span{transform:translateY(-5px)}
+  .cell.today .day::after{content:"dziś";position:absolute;left:0;right:0;bottom:4px;font-size:10px;line-height:1;text-align:center;color:inherit}
+  .cell:focus-visible .day{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--focus)}
+  .day{z-index:1}
+
+  /* Stopka */
+  .footer{display:flex;align-items:center;gap:16px;border-top:1px solid #e3e5ea;padding:18px 32px 20px 36px}
+  .footer .spacer{flex:1}
+  .btn{height:40px;padding:0 20px;border-radius:6px;font:inherit;font-size:15px;cursor:pointer;transition:background-color .15s ease-in-out,border-color .15s ease-in-out}
+  .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .btn-text{border:0;background:none;color:var(--navy);padding:0 4px;margin-left:-4px}
+  .btn-text:hover{text-decoration:underline}
+  .btn-sec{border:1px solid var(--line);background:#fff;color:var(--text)}
+  .btn-sec:hover{border-color:var(--line-strong)}
+  .btn-pri{border:1px solid var(--navy);background:var(--navy);color:#fff}
+  .btn-pri:hover{background:#1c1c86}
+
+  @media (min-width:1320px){ body.with-state .scrim{padding-left:300px} body.with-state .page{max-width:none;padding-left:326px;padding-right:40px} }
+  @media (max-width:1319px){ .state:not(.open){display:none} }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+
+  /* ===== Mobile: BottomSheet (szerokość 320–639) ===== */
+  .sheet-head{display:none}
+  @media (max-width:639px){
+    .page{padding:20px 16px}
+    .page h1{font-size:22px;margin-bottom:14px}
+    .variant{display:none}
+    .rows div{padding:12px 14px}
+    .rows .date{width:92px}
+    /* Lista na telefonie: nazwa i kwota w pierwszej linii, data pod nazwą (kwota nigdy się nie łamie) */
+    .rows div:not(.empty-row){display:grid;grid-template-columns:1fr auto;column-gap:12px;row-gap:2px;align-items:baseline}
+    .rows .name{grid-column:1;grid-row:1;min-width:0}
+    .rows div>span:last-child{grid-column:2;grid-row:1;white-space:nowrap;text-align:right;padding-left:0}
+    .rows .date{grid-column:1;grid-row:2;width:auto;font-size:13px}
+    .scrim{align-items:flex-end;padding:0}
+    .dialog{width:100%;max-width:600px;max-height:80vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;animation:sheetIn .3s ease-out;touch-action:pan-y}
+    .dialog.sheet-out{animation:sheetOut .2s ease-in forwards}
+    .scrim{animation:scrimIn .3s ease-out}
+    .scrim.scrim-out{animation:scrimOut .2s ease-in forwards}
+    .sheet-head{display:flex;align-items:center;position:relative;padding:20px 8px 4px 16px;flex:none}
+    .sheet-handle{position:absolute;top:0;left:50%;transform:translateX(-50%);width:96px;height:24px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
+    .sheet-handle::before{content:"";width:36px;height:4px;border-radius:2px;background:#c3c7d6}
+    .sheet-title{flex:1;font-size:18px;font-weight:600;margin:0}
+    .sheet-close{width:44px;height:44px;border:0;background:none;border-radius:50%;color:var(--navy);display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .sheet-close:focus-visible{outline:2px solid var(--focus)}
+    .dhead{padding:8px 16px 14px;gap:24px;border-radius:0}
+    .dh-col{min-width:0;flex:1}
+    .dh-value{font-size:16px}
+    .body{padding:12px 16px 16px;overflow:auto;flex:1;overscroll-behavior:contain}
+    .chips{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 20px;padding:0 16px 2px;scrollbar-width:none}
+    .chips::-webkit-scrollbar{display:none}
+    .chip{flex:none}
+    .fields{gap:12px;margin-bottom:20px}
+    .field{padding:0 10px}
+    .segs{font-size:15px}
+    .field.ro{font-size:14px;padding:0 10px}
+    .cals{grid-template-columns:1fr;justify-content:stretch}
+    .cal-head{margin-bottom:6px}
+    .grid{grid-template-columns:repeat(7,1fr)}
+    .cell{height:44px}
+    .day{width:40px;height:40px}
+    .footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom));flex:none;gap:12px}
+    #btnCancel{display:none}
+    #btnApply{min-width:140px}
+  }
+
+  /* ===== Mobile: zgodnie ze specyfikacją BottomSheet (przyciski stopki jeden pod drugim) ===== */
+  @media (max-width:639px){
+    .sheet-head{padding:20px 4px 8px 16px}
+    .footer{flex-direction:column;align-items:stretch;gap:8px;padding:12px 16px calc(16px + env(safe-area-inset-bottom))}
+    .footer .spacer{display:none}
+    #btnApply{order:-1;width:100%;min-width:0;height:44px}
+    #btnReset{width:100%;height:44px;margin:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--text);text-decoration:none}
+    #btnReset:hover{text-decoration:none;border-color:var(--line-strong)}
+    .nav{width:44px;height:44px;top:-4px}
+    .nav.prev{left:-8px}.nav.next{right:-8px}
+    .field.ro{text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+    .body{overflow-x:hidden}
+    .cal-head{position:sticky;top:-12px;z-index:3;background:#fff;padding-top:4px;height:44px}
+    .sheet-head{border-bottom:1px solid transparent;transition:border-color .15s ease-in-out}
+    .sheet-head.scrolled{border-bottom-color:#e3e5ea}
+    .footer{border-top:1px solid transparent;transition:border-color .15s ease-in-out}
+    .footer.more{border-top-color:#e3e5ea}
+  }
+  /* Najwęższe ekrany (320–359) */
+  @media (max-width:359px){
+    .fields{gap:8px}
+    .field{padding:0 8px}
+    .segs{font-size:14px}
+    .clear{width:26px;height:26px;margin-right:-5px}
+    .clear svg{width:18px;height:18px}
+    .day{width:36px;height:36px;font-size:14px}
+    .cell{height:40px}
+    .dhead{gap:12px}
+    .dh-value{font-size:15px}
+    .chip{font-size:13px;padding:0 12px}
+  }
+
+  /* ===== Mobile: stała wysokość 80% ekranu, przesuwanie miesięcy gestem ===== */
+  @media (max-width:639px){
+    .dialog{height:80vh;height:80dvh;max-height:none}
+    .cals{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  }
+
+  /* ===== Mobile, koncept 1: symulacja klawiatury numerycznej ===== */
+  .kb{display:none}
+  @media (max-width:639px){
+    .segs{font-size:16px}                 /* iOS powiększa stronę przy polach < 16 px */
+    body.kb-open .scrim{padding-bottom:var(--kb)}
+    body.kb-open .dialog{height:calc(100dvh - var(--kb) - 16px);animation:none}
+    .kb{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#d1d4db;display:flex;flex-direction:column;height:var(--kb);transform:translateY(100%);transition:transform .25s ease-out;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+    body.kb-open .kb{transform:none}
+    .kb-bar{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 14px;background:#f0f1f4;border-top:1px solid #c3c7d0;font-size:13px;color:#555a6b}
+    .kb-bar button{border:0;background:none;font:inherit;font-size:16px;font-weight:600;color:#1a5fd6;padding:8px;cursor:pointer}
+    .kb-keys{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px 6px 8px}
+    .kb-keys button{border:0;border-radius:6px;background:#fff;box-shadow:0 1px 0 #8e929b;font:inherit;font-size:24px;color:#111;cursor:pointer;touch-action:manipulation}
+    .kb-keys button:active{background:#bfc3cc}
+    .kb-keys .fn{background:transparent;box-shadow:none;font-size:20px}
+    .kb-keys .empty{visibility:hidden}
+  }
+  @media (max-width:359px){
+    .clear{width:26px;height:26px;margin-right:-5px}   /* ClearButton 26 px (InputField); na mobile musi być widoczny także na 320 px */
+    .segs{font-size:16px;letter-spacing:-.2px}
+  }
+  @media (prefers-reduced-motion: reduce){ .kb{transition:none} }
+
+  /* ===== Mobile: przewijana w pionie lista miesięcy, wybrane daty zawsze widoczne ===== */
+  .wd-sticky{display:none}
+  @media (max-width:639px){
+    .body{display:flex;flex-direction:column;overflow:hidden !important;padding-bottom:0}
+    .chips,.fields{flex:none}
+    .cals{display:block;flex:1;min-height:0;overflow-y:auto;position:relative;margin:0 -16px;padding:0 16px 16px;overscroll-behavior:contain;border-top:1px solid #e3e5ea}
+    .wd-sticky{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(7,1fr);height:32px;align-items:center;background:#fff;font-size:13px;color:var(--muted);text-align:center;margin:0 -16px;padding:0 16px;box-shadow:0 1px 0 #eef0f4}
+    .cals .nav{display:none}
+    .cals .cal-head{position:static !important;height:auto !important;margin:14px 0 6px;padding:0 !important;background:none}
+    .cals .cal-title{text-align:left;font-size:15px;font-weight:600}
+    .cals .grid .wd{display:none}
+    .fields{margin-bottom:14px}
+    .chips{margin-bottom:14px}
+  }
+
+  /* ===== Mobile: wybrane daty w nagłówku arkusza (wzorzec Material: mały tytuł + wybór jako główny tekst) ===== */
+  @media (max-width:639px){
+    .sheet-head{align-items:flex-start;padding:18px 4px 0 16px;border-bottom:0 !important}
+    .sheet-title{font-size:13px;font-weight:500;color:var(--muted);padding-top:12px}
+    .sheet-close{margin-top:-2px}
+    /* koncept 3: Od / Do jako część nagłówka */
+    .dhead{padding:2px 16px 14px;gap:16px;border-bottom:1px solid #e3e5ea}
+    .dhead ~ .body .chips{margin-top:12px}
+    .dh-label{font-size:12px;margin-bottom:2px}
+    .dh-value{font-size:18px;font-weight:600}
+    .dh-value.ph{font-size:18px;font-weight:400}
+    .dh-value.invalid{font-size:15px;font-weight:500}
+    /* koncepty 1 i 2: pola jako część nagłówka, nad gotowymi zakresami */
+    .body{padding-top:0}
+    .fields{order:-1;margin:0 -16px 12px;padding:2px 16px 14px;border-bottom:1px solid #e3e5ea}
+    .chips{margin-bottom:12px}
+  }
+
+  /* ===== Mobile: bez tytułu „Zakres dat” — wybór jest pierwszą treścią arkusza, krzyżyk w rogu ===== */
+  @media (max-width:639px){
+    /* Nagłówek wg specyfikacji (układ wyśrodkowany): 8 uchwyt 12, rząd z X (40), 16 odstępu, potem treść na całą szerokość */
+    .sheet-head{padding:0;height:20px;position:relative}
+    .sheet-title{display:none}
+    /* BottomSheet: przycisk zamknięcia przy górnej krawędzi tekstu (środek ikony = środek pierwszej linii), 16 px od prawej krawędzi */
+    /* Wg specyfikacji BottomSheet: X w kolumnie 16 px od prawej krawędzi, 16 px odstępu od treści; środek ikony na wysokości pierwszej linii tekstu */
+    /* X obok treści: ikona 16 px od prawej krawędzi, środek ikony na wysokości pierwszej linii tekstu */
+    .sheet-close{position:absolute;top:12px;right:6px;width:40px;height:40px;margin-top:0;z-index:5}
+    /* Uchwyt: obszar dotyku min. 44 px wysokości (specyfikacja), kreska bez zmian */
+    /* Uchwyt: 8 px od górnej krawędzi, 12 px do treści (specyfikacja); obszar dotyku 44 px */
+    .sheet-handle{height:44px;align-items:flex-start;padding-top:8px;box-sizing:border-box;z-index:4}
+    .dhead{padding:4px 52px 20px 16px}   /* 16 px odstępu od ikony X; 20 px pod treścią nagłówka */
+    .fields{padding-top:4px}
+    /* Kolumna przycisku zamknięcia: pod nim nic nie stoi (pola nie wchodzą pod X) */
+    .fields{padding-right:52px;padding-bottom:20px}   /* 16 px odstępu od ikony X; 20 px pod treścią nagłówka */
+  }
+
+  /* ===== Mobile: arkusz 90% ekranu, wskazanie następnej daty, „dziś” w kalendarzu ===== */
+  @media (max-width:639px){
+    .dialog{height:90vh;height:90dvh}
+    /* Następna data do wybrania: etykieta w kolorze akcentu (bez ramek) */
+    .label.next,.dh-label.next{color:var(--focus);font-weight:600}
+    .dh-value.next{color:var(--focus);font-weight:500}
+    /* Koncept 3: „Od” i „Do” w dwóch liniach, pełne nazwy miesięcy */
+    .dhead{flex-direction:column;gap:2px}
+    .dh-col{display:flex;align-items:baseline;gap:10px;min-width:0}
+    .dh-label{width:24px;flex:none;margin:0;font-size:13px}
+    .dh-value,.dh-value.ph{font-size:17px}
+    .dh-value.invalid{font-size:15px}
+  }
+
+  /* ===== Mobile, koncept 1: tryb wpisywania (wzorzec Material) — przy klawiaturze kalendarz się chowa ===== */
+  .typing-hint{display:none}
+  @media (max-width:639px){ .field .segs{position:relative} .field.empty .seg,.field.empty .sep{color:transparent !important} .field.empty .segs::after{content:'Wybierz datę';position:absolute;left:0;top:50%;transform:translateY(-50%);white-space:nowrap;color:var(--muted)} .field.active .seg.on{background:none;color:inherit} .kb, body.kb-open .typing-hint{display:none !important} }
+  @media (max-width:639px){
+    body.kb-open .dialog{height:auto;max-height:calc(100dvh - var(--kb) - 16px)}
+    body.kb-open .cals{display:none}
+    body.kb-open .typing-hint{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0 14px;font-size:14px;color:var(--muted)}
+    .typing-hint button{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--navy);font:inherit;font-weight:600;padding:10px 0;cursor:pointer;white-space:nowrap}
+    body.kb-open .body{flex:none}
+  }
+
+  /* ===== Mobile: stopka w jednym rzędzie — wg specyfikacji BottomSheet przyciski stoją obok siebie, jeden pod drugim tylko gdy się nie mieszczą ===== */
+  @media (max-width:639px){
+    .footer{flex-direction:row;gap:8px}
+    #btnApply{order:2;flex:1}
+    #btnReset{order:1;flex:1}
+    #btnReset[hidden]{display:none}
+  }
+
+  /* Tryb wpisywania: przy otwartej klawiaturze zostają tylko pola i powrót do kalendarza */
+  @media (max-width:639px){
+    body.kb-open .chips, body.kb-open .footer{display:none}
+  }
+  @keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes sheetOut{from{transform:translateY(var(--drag,0))}to{transform:translateY(100%)}}
+  @keyframes scrimIn{from{background:rgba(20,20,32,0)}to{background:rgba(20,20,32,.45)}}
+  @keyframes scrimOut{from{background:rgba(20,20,32,.45)}to{background:rgba(20,20,32,0)}}
+  @media (prefers-reduced-motion: reduce){ .dialog,.scrim,.dialog.sheet-out,.scrim.scrim-out{animation:none !important} }
+  .dialog:focus{outline:none}
+  /* InputField: desktop rozmiar M = 40 px, mobile zawsze 48 px */
+  @media (max-width:639px){ .field,.field.ro{height:48px} }
+  /* ===== Pola wg specyfikacji Input / InputField ===== */
+  .label{font-size:14px;line-height:20px}
+  .field{border-radius:8px;padding:0 12px}                      /* radius-s = 8 px, odstęp wewnętrzny 12 px */
+  .segs{font-size:16px;line-height:24px;letter-spacing:0}
+  .clear{margin-left:8px;margin-right:0}                        /* 8 px między wartością a ClearButton */
+  /* Za wąskie pole (320–359): odstępy zostają jak w specyfikacji, data w aktywnym polu jest przycinana pod X */
+  .segs{overflow:hidden;white-space:nowrap}
+  @media (max-width:639px){ .segs{font-variant-numeric:normal} }   /* na telefonie cyfry o zwykłej szerokości, jak w koncepcie 2 */
+  .fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}   /* kolumny pól zawsze równe, treść nie rozpycha siatki */
+</style>
+</head>
+<body>
+
+<main class="page" aria-hidden="false" id="page">
+  <h1>Historia operacji</h1>
+  <div class="toolbar">
+    <button class="trigger" id="trigger" type="button" aria-haspopup="dialog">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 8.5h14M7 2.75v3.5M13 2.75v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Data
+    </button>
+    <span class="ftag" id="ftag" hidden>
+      <b>Data:</b><span id="ftagValue"></span>
+      <button class="ftag-x" id="ftagX" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </span>
+  </div>
+  <p class="count" id="count" aria-live="polite"></p>
+  <div class="rows" id="rows" aria-label="Operacje"></div>
+  <div class="sr" aria-live="polite" id="livePage"></div>
+</main>
+
+
+<div class="scrim" id="scrim" hidden>
+  <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle" tabindex="-1">
+    <h2 class="sr" id="dlgTitle">Wybierz zakres dat</h2>
+    <div class="sheet-head">
+      <div class="sheet-handle" id="sheetHandle" aria-hidden="true"></div>
+      <p class="sheet-title" aria-hidden="true">Zakres dat</p>
+      <button class="sheet-close" type="button" id="sheetClose" aria-label="Zamknij bez zmian">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="body">
+      <div class="chips" id="chips" role="radiogroup" aria-label="Gotowe zakresy dat"></div>
+
+      <div class="fields" role="group" aria-label="Zakres dat">
+        <div class="fieldwrap" data-f="from">
+          <span class="label" id="lbl-from">Data od</span>
+          <div class="field" data-f="from" role="group" aria-labelledby="lbl-from">
+            <div class="segs"></div>
+            <button class="clear" type="button" tabindex="-1" aria-label="Wyczyść datę początkową">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/><path d="M7.2 7.2l5.6 5.6M12.8 7.2l-5.6 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <div class="err" id="err-from"></div>
+        </div>
+        <div class="fieldwrap" data-f="to">
+          <span class="label" id="lbl-to">Data do</span>
+          <div class="field" data-f="to" role="group" aria-labelledby="lbl-to">
+            <div class="segs"></div>
+            <button class="clear" type="button" tabindex="-1" aria-label="Wyczyść datę końcową">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/><path d="M7.2 7.2l5.6 5.6M12.8 7.2l-5.6 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <div class="err" id="err-to"></div>
+        </div>
+      </div>
+
+      <div class="typing-hint" id="typingHint">
+        <span>Wpisz daty</span>
+        <button type="button" id="showCal"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 8.5h14M7 2.75v3.5M13 2.75v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Pokaż kalendarz</button>
+      </div>
+      <div class="cals" id="cals"></div>
+    </div>
+    <div class="footer">
+      <button class="btn btn-text" type="button" id="btnReset">Resetuj</button>
+      <span class="spacer"></span>
+      <button class="btn btn-sec" type="button" id="btnCancel">Anuluj</button>
+      <button class="btn btn-pri" type="button" id="btnApply">Filtruj</button>
+    </div>
+    <div class="sr" aria-live="polite" id="live"></div>
+  </div>
+</div>
+
+
+<div class="kb" id="kb" aria-hidden="true">
+  <div class="kb-bar"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Klawiatura telefonu (symulacja)</span><button type="button" data-kb="done">Gotowe</button></div>
+  <div class="kb-keys">
+    <button type="button" data-kb="1">1</button><button type="button" data-kb="2">2</button><button type="button" data-kb="3">3</button>
+    <button type="button" data-kb="4">4</button><button type="button" data-kb="5">5</button><button type="button" data-kb="6">6</button>
+    <button type="button" data-kb="7">7</button><button type="button" data-kb="8">8</button><button type="button" data-kb="9">9</button>
+    <button type="button" class="empty" tabindex="-1"></button><button type="button" data-kb="0">0</button><button type="button" class="fn" data-kb="Backspace" aria-label="Usuń">⌫</button>
+  </div>
+</div>
+<script>
+(function(){
+  /* ===== Daty ===== */
+  const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+  const MONTHS_GEN = ['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
+  const WD_SHORT = ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
+  const WD_FULL = ['poniedziałek','wtorek','środa','czwartek','piątek','sobota','niedziela'];
+
+  const now = new Date();
+  const TODAY = {y:now.getFullYear(), m:now.getMonth()+1, d:now.getDate()};
+  const key = o => o.y*10000 + o.m*100 + o.d;
+  const fromJs = dt => ({y:dt.getFullYear(), m:dt.getMonth()+1, d:dt.getDate()});
+  const addDays = (o,n) => fromJs(new Date(o.y, o.m-1, o.d+n));
+  const daysIn = (m,y) => new Date(y, m, 0).getDate();
+  const addMonths = (v,n) => { const dt = new Date(v.y, v.m-1+n, 1); return {y:dt.getFullYear(), m:dt.getMonth()+1}; };
+  // Właściwość Direction: Past = bieżący miesiąc po prawej (historia), Future = bieżący po lewej (planowane)
+  const DIRECTION = /*DIRECTION*/'past';
+  // Mobile (320–639): arkusz od dołu i jeden miesiąc kalendarza
+  const MOBILE = window.matchMedia('(max-width:639px)').matches;
+  const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Mobile: okno miesięcy przewijane w pionie (Past: 24 miesiące wstecz do bieżącego, Future: bieżący i 24 naprzód)
+  let MONTHS_N = MOBILE ? 25 : 2;
+  const WIN = { start: DIRECTION==='past' ? addMonths({y:TODAY.y,m:TODAY.m},-24) : {y:TODAY.y,m:TODAY.m} };
+  const mkey2 = v => v.y*12 + v.m;
+  function initialView(from,to){
+    if(MOBILE){ const t = from||to||TODAY; return {y:t.y,m:t.m}; }  // mobile: przewiń do miesiąca początku zakresu (albo bieżącego)
+    if(DIRECTION==='past'){ const end = to || from || TODAY; return addMonths({y:end.y,m:end.m},-(MOBILE?0:MONTHS_N-1)); }
+    const s0 = from || TODAY; return {y:s0.y, m:s0.m};
+  }
+  const same = (a,b) => a && b && key(a)===key(b);
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = o => o ? `${pad(o.d)}.${pad(o.m)}.${o.y}` : '—';
+  const weekday = o => (new Date(o.y,o.m-1,o.d).getDay()+6)%7;
+  const longLabel = o => `${WD_FULL[weekday(o)]}, ${o.d} ${MONTHS_GEN[o.m-1]} ${o.y}`;
+
+  /* ===== Gotowe zakresy ===== */
+  const PRESETS = [
+    {id:'custom', label:'Własny zakres dat'},
+    {id:'last3',  label:'Ostatnie 3 dni',   range:()=>[addDays(TODAY,-2), TODAY]},
+    {id:'month',  label:'Bieżący miesiąc',  range:()=>[{y:TODAY.y,m:TODAY.m,d:1}, TODAY]},
+    {id:'last30', label:'Ostatnie 30 dni',  range:()=>[addDays(TODAY,-29), TODAY]},
+    {id:'next3',  label:'Przyszłe 3 dni',   range:()=>[TODAY, addDays(TODAY,2)]},
+    {id:'next30', label:'Przyszłe 30 dni',  range:()=>[TODAY, addDays(TODAY,29)]},
+  ];
+
+  /* ===== Komunikaty (propozycje do weryfikacji) ===== */
+  const MSG = {
+    reqFrom: 'Podaj datę początkową.',
+    reqTo: 'Podaj datę końcową.',
+    partial: 'Wpisz pełną datę w formacie DD.MM.RRRR.',
+    notExist: 'Taka data nie istnieje. Sprawdź dzień i miesiąc.',
+    order: 'Data końcowa nie może być wcześniejsza niż początkowa.'
+  };
+
+  /* ===== Stan ===== */
+  const emptySegs = () => ({d:'',m:'',y:''});
+  const S = {
+    preset:'custom',
+    fields:{from:emptySegs(), to:emptySegs()},
+    activeField:null, activeSeg:null, fresh:true,
+    view:initialView(null,null),          // lewy miesiąc
+    hover:null, gridFocused:false, focusDate:{...TODAY},
+    show:{from:false,to:false},             // czy wolno pokazać błąd „brak / niepełna data”
+    submitted:false,
+    committed:null
+  };
+
+  function parse(f){
+    const s = S.fields[f];
+    const any = s.d||s.m||s.y;
+    if(!any) return {status:'empty'};
+    const d = parseInt(s.d,10), m = parseInt(s.m,10), y = parseInt(s.y,10);
+    if(!s.d || !s.m || s.y.length<4 || !d || !m) return {status:'partial'};
+    if(m<1||m>12||y<1||d<1||d>daysIn(m,y)) return {status:'invalid'};
+    return {status:'valid', date:{y,m,d}};
+  }
+  function errors(){
+    const A = parse('from'), B = parse('to'), e = {from:null,to:null};
+    [['from',A,MSG.reqFrom],['to',B,MSG.reqTo]].forEach(([f,g,req])=>{
+      if(g.status==='invalid') e[f]=MSG.notExist;
+      else if(S.show[f] && g.status==='partial') e[f]=MSG.partial;
+      else if(S.show[f] && S.submitted && g.status==='empty') e[f]=req;
+    });
+    if(A.status==='valid' && B.status==='valid' && key(B.date)<key(A.date)) e.to = MSG.order;
+    return e;
+  }
+  // Zakres widoczny w kalendarzu: przy błędzie kolejności pokazujemy tylko początek
+  function effective(){
+    const A = parse('from'), B = parse('to');
+    const F = A.status==='valid' ? A.date : null;
+    let T = B.status==='valid' ? B.date : null;
+    if(F && T && key(T)<key(F)) T = null;
+    return {F,T};
+  }
+  function setField(f, o){ S.fields[f] = o ? {d:pad(o.d), m:pad(o.m), y:String(o.y)} : emptySegs(); }
+  function hasAnyValue(){ return ['from','to'].some(f=>{const s=S.fields[f]; return s.d||s.m||s.y;}); }
+
+  /* ===== Widok kalendarza ===== */
+  function isVisible(o){ for(let i=0;i<MONTHS_N;i++){ const v=addMonths(S.view,i); if(o.y===v.y&&o.m===v.m) return true; } return false; }
+  function showDate(o, side){
+    if(isVisible(o)) return;
+    S.view = side==='right' ? addMonths({y:o.y,m:o.m},-(MOBILE?0:MONTHS_N-1)) : {y:o.y,m:o.m};
+  }
+
+  /* ===== Elementy ===== */
+  const $ = s => document.querySelector(s);
+  const scrim=$('#scrim'), dialog=$('#dialog'), chipsEl=$('#chips'), calsEl=$('#cals'), live=$('#live');
+  const fieldEls = {from:$('.field[data-f="from"]'), to:$('.field[data-f="to"]')};
+  const SEG_META = {d:{ph:'DD',label:'dzień',min:1,max:31}, m:{ph:'MM',label:'miesiąc',min:1,max:12}, y:{ph:'RRRR',label:'rok',min:1,max:9999}};
+  const ORDER = ['d','m','y'];
+
+  // Budowa segmentów
+  ['from','to'].forEach(f=>{
+    const box = fieldEls[f].querySelector('.segs');
+    ORDER.forEach((k,i)=>{
+      const el = document.createElement('span');
+      el.className='seg'; el.dataset.seg=k; el.dataset.f=f;
+      el.setAttribute('role','spinbutton');
+      el.setAttribute('aria-label', SEG_META[k].label);
+      el.setAttribute('aria-valuemin', SEG_META[k].min);
+      el.setAttribute('aria-valuemax', SEG_META[k].max);
+      el.setAttribute('aria-describedby','err-'+f);
+      if(MOBILE) el.setAttribute('aria-readonly','true');
+      el.tabIndex = k==='d' ? 0 : -1;
+      box.appendChild(el);
+      if(i<2){ const sp=document.createElement('span'); sp.className='sep'; sp.textContent='.'; sp.setAttribute('aria-hidden','true'); box.appendChild(sp); }
+    });
+  });
+  const seg = (f,k) => fieldEls[f].querySelector(`.seg[data-seg="${k}"]`);
+
+  // Budowa gotowych zakresów
+  PRESETS.forEach(p=>{
+    const b=document.createElement('button');
+    b.type='button'; b.className='chip'; b.textContent=p.label; b.dataset.id=p.id;
+    b.setAttribute('role','radio');
+    chipsEl.appendChild(b);
+  });
+
+  /* ===== Render ===== */
+  function render(){
+    // Gotowe zakresy
+    chipsEl.querySelectorAll('.chip').forEach(c=>{
+      const on = c.dataset.id===S.preset;
+      c.setAttribute('aria-checked', on);
+      c.tabIndex = on ? 0 : -1;
+    });
+
+    // Pola
+    const errs = errors();
+    ['from','to'].forEach(f=>{
+      const s = S.fields[f], fe = fieldEls[f];
+      const any = s.d||s.m||s.y, active = S.activeField===f;
+      fe.classList.toggle('active', active);
+      fe.classList.toggle('has-value', !!any);
+      fe.classList.toggle('empty', !any);
+      fe.classList.toggle('invalid', !!errs[f]);
+      fe.querySelectorAll('.sep').forEach(sp=>sp.classList.toggle('ph', !any && !active));
+      ORDER.forEach(k=>{
+        const el = seg(f,k), v = s[k];
+        el.textContent = v || SEG_META[k].ph;
+        el.classList.toggle('ph', !v);
+        el.classList.toggle('on', active && S.activeSeg===k);
+        if(v){ el.setAttribute('aria-valuenow', parseInt(v,10)||0); el.setAttribute('aria-valuetext', v); }
+        else { el.removeAttribute('aria-valuenow'); el.setAttribute('aria-valuetext','puste'); }
+        el.setAttribute('aria-invalid', errs[f] ? 'true':'false');
+      });
+      $('#err-'+f).textContent = errs[f] || '';
+      // Mobile: etykieta daty, którą ustawi następne kliknięcie w kalendarzu
+      // Mobile: pole, do którego trafi następne dotknięcie: wybrane przez użytkownika, a jeśli żadne — kolejne puste
+      { const ef=effective(); const next = !ef.F ? 'from' : (!ef.T ? 'to' : null);
+        const target = MOBILE ? (S.activeField || next) : null;
+        document.querySelector(`.fieldwrap[data-f="${f}"] .label`).classList.toggle('next', target===f && !errs[f]);
+        fe.classList.toggle('target', target===f && !errs[f]); }
+    });
+
+    renderCalendar();
+
+    // Stopka
+    $('#btnReset').hidden = !(hasAnyValue() || S.preset!=='custom');
+
+    renderState(errs);
+    if(typeof syncKeyboard==='function') syncKeyboard();
+  }
+
+  function previewRange(F,T){
+    const H = S.hover || (S.gridFocused ? S.focusDate : null);
+    if(!H) return null;
+    if(S.activeField==='from' && T && key(H)<key(T)) return [H,T];
+    if(S.activeField==='to' && F && key(H)>key(F)) return [F,H];
+    if(!S.activeField && F && !T && key(H)>key(F)) return [F,H];
+    return null;
+  }
+
+  // Mobile: S.view wskazuje miesiąc do pokazania; lista zostaje, a kalendarz przewija się do tego miesiąca
+  function mobileWindow(){
+    const t=S.view;
+    if(t.y===WIN.start.y && t.m===WIN.start.m && !S._scrollTo) return;
+    if(!(t.y===WIN.start.y && t.m===WIN.start.m)){
+      if(mkey2(t)<mkey2(WIN.start)){ MONTHS_N += mkey2(WIN.start)-mkey2(t); WIN.start={y:t.y,m:t.m}; }
+      const last=addMonths(WIN.start,MONTHS_N-1); if(mkey2(t)>mkey2(last)) MONTHS_N += mkey2(t)-mkey2(last);
+      S._scrollTo={y:t.y,m:t.m}; S.view={...WIN.start};
+    }
+  }
+  function renderCalendar(){
+    if(MOBILE) mobileWindow();
+    const {F,T} = effective();
+    const pv = previewRange(F,T);
+    const lo = pv ? pv[0] : F, hi = pv ? pv[1] : T;
+    if(!isVisible(S.focusDate)) S.focusDate = (F && isVisible(F)) ? F : (isVisible(TODAY) ? {...TODAY} : {y:S.view.y,m:S.view.m,d:1});
+    const hadFocus = calsEl.contains(document.activeElement) && document.activeElement.classList.contains('cell');
+
+    let html='';
+    if(MOBILE) html += '<div class="wd-sticky" aria-hidden="true">'+WD_SHORT.map(w=>`<span>${w}</span>`).join('')+'</div>';
+    [...Array(MONTHS_N).keys()].forEach(i=>{
+      const v = addMonths(S.view,i), id='cal-t-'+i;
+      html += `<div class="cal" data-month="${v.y}-${v.m}"><div class="cal-head">`;
+      if(i===0) html += `<button class="nav prev" type="button" data-nav="-1" aria-label="Poprzedni miesiąc"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+      html += `<div class="cal-title" id="${id}">${MONTHS[v.m-1]} ${v.y}</div>`;
+      if(i===MONTHS_N-1) html += `<button class="nav next" type="button" data-nav="1" aria-label="Następny miesiąc"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5L13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+      html += `</div><div class="grid" role="grid" aria-labelledby="${id}"><div role="row" style="display:contents">`;
+      WD_SHORT.forEach((w,j)=> html += `<div class="wd" role="columnheader" aria-label="${WD_FULL[j]}">${w}</div>`);
+      html += `</div>`;
+      const off = weekday({y:v.y,m:v.m,d:1}), n = daysIn(v.m,v.y);
+      for(let r=0;r<(MOBILE?Math.ceil((off+n)/7):6);r++){
+        html += `<div role="row" style="display:contents">`;
+        for(let c=0;c<7;c++){
+          const d = r*7+c-off+1;
+          if(d<1||d>n){ html += `<div class="cell empty" role="gridcell"></div>`; continue; }
+          const o={y:v.y,m:v.m,d}, k=key(o);
+          const isStart = lo && k===key(lo), isEnd = hi && k===key(hi);
+          const inBand = lo && hi && k>=key(lo) && k<=key(hi);
+          const realSel = (F&&k===key(F)) || (T&&k===key(T)) || (F&&T&&k>key(F)&&k<key(T));
+          const cls = ['cell'];
+          if(isStart || (!pv && F && k===key(F))) cls.push('start');
+          if(isEnd || (!pv && T && k===key(T))) cls.push('end');
+          if(pv && F && k===key(F) && !isStart) cls.push('start','end');
+          if(pv && T && k===key(T) && !isEnd && !inBand) cls.push('start','end');
+          if(same(o,TODAY)) cls.push('today');
+          if(S.gridFocused && same(o,S.focusDate) && !S.hover) cls.push('kbd-hover');
+          const focusable = same(o,S.focusDate);
+          html += `<div class="${cls.join(' ')}" role="gridcell" data-k="${k}" tabindex="${focusable?0:-1}" aria-selected="${realSel?'true':'false'}"${same(o,TODAY)?' aria-current="date"':''} aria-label="${longLabel(o)}${same(o,TODAY)?', dzisiaj':''}">`;
+          if(inBand) html += `<div class="band${pv?' preview':''}"></div>`;
+          html += `<div class="day"><span>${d}</span></div></div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div></div>`;
+    });
+    S._internal=true; calsEl.innerHTML = html; S._internal=false;
+    if(MOBILE && S._scrollTo){
+      const el=calsEl.querySelector(`[data-month="${S._scrollTo.y}-${S._scrollTo.m}"]`);
+      if(el && calsEl.clientHeight){
+        const sticky=32;
+        const target=S._scrollTo;
+        calsEl.scrollTop = el.offsetTop-sticky-4;  // nazwa miesiąca tuż pod dniami tygodnia (przy końcu listy przeglądarka zatrzymuje się na dole)
+        S._scrollTo=null;
+        // Powtórzenie po ułożeniu arkusza (animacja wejścia, czcionki), żeby lista zawsze startowała na właściwym miesiącu
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{ const e2=calsEl.querySelector(`[data-month="${target.y}-${target.m}"]`); if(e2) calsEl.scrollTop=e2.offsetTop-sticky-4; }));
+      }
+    }
+    if(hadFocus || S.gridFocused && S._refocus){ const c = calsEl.querySelector('.cell[tabindex="0"]'); if(c){ S._internal=true; c.focus(); S._internal=false; } }
+    S._refocus=false;
+  }
+
+  function renderState(errs){ if(!document.getElementById('stateList')) return;
+    const A=parse('from'), B=parse('to');
+    const desc = (f,g)=>{ const s=S.fields[f]; return `${s.d||'__'}.${s.m||'__'}.${s.y||'____'} (${({empty:'puste',partial:'niepełne',invalid:'nie istnieje',valid:'poprawne'})[g.status]})`; };
+    const c = S.committed;
+    const rows = [
+      ['Zakres', PRESETS.find(p=>p.id===S.preset).label],
+      ['Data od', desc('from',A)],
+      ['Data do', desc('to',B)],
+      ['Aktywne pole', S.activeField ? (S.activeField==='from'?'Data od':'Data do')+' / '+SEG_META[S.activeSeg||'d'].label : '—'],
+      ['Błąd od', errs.from||'—'],
+      ['Błąd do', errs.to||'—'],
+      ['Wynik', c ? `${fmt(c.from)} – ${fmt(c.to)} (${PRESETS.find(p=>p.id===c.preset).label})` : 'brak'],
+    ];
+    $('#stateList').innerHTML = rows.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  }
+
+  /* ===== Zmiana wartości ===== */
+  function onUserEdit(f){
+    S.preset='custom';
+    S.show[f]=false;
+    const g = parse(f);
+    if(g.status==='valid') showDate(g.date, f==='from'?'left':'right');
+  }
+  function announce(t){ live.textContent=''; setTimeout(()=>live.textContent=t, 30); }
+
+  /* ===== Segmenty: wpisywanie ===== */
+  function focusSeg(f,k){ seg(f,k).focus(); }
+  function moveSeg(f,k,dir){
+    const i = ORDER.indexOf(k)+dir;
+    if(i>=0 && i<ORDER.length) focusSeg(f,ORDER[i]);
+  }
+  function padSeg(f,k){
+    const s=S.fields[f];
+    if(k==='y') return;
+    if(s[k]==='0') s[k]='';
+    else if(s[k].length===1) s[k]='0'+s[k];
+  }
+  function typeDigit(f,k,dg){
+    const s=S.fields[f], n=+dg;
+    if(k==='d' || k==='m'){
+      const max = k==='d'?31:12, first = k==='d'?3:1;
+      if(S.fresh || s[k].length>=2){
+        S.fresh=false;
+        if(n>first){ s[k]='0'+dg; onUserEdit(f); render(); moveSeg(f,k,1); return; }
+        s[k]=dg;
+      } else {
+        const v = parseInt(s[k]+dg,10);
+        if(v>=1 && v<=max){ s[k]=s[k]+dg; onUserEdit(f); render(); moveSeg(f,k,1); return; }
+        s[k]=dg;
+      }
+    } else {
+      if(S.fresh || s.y.length>=4){ s.y=dg; S.fresh=false; }
+      else s.y += dg;
+    }
+    onUserEdit(f); render();
+    // Pełna, poprawna data od wpisana z klawiatury -> fokus na dzień w „Data do” (gdy data do nie ma jeszcze poprawnej wartości)
+    if(f==='from' && k==='y' && s.y.length===4 && parse('from').status==='valid' && parse('to').status!=='valid') focusSeg('to','d');
+  }
+  function stepSeg(f,k,dir){
+    const s=S.fields[f];
+    let max = k==='d' ? 31 : k==='m' ? 12 : 9999;
+    if(k==='d' && s.m && s.y.length===4) max = daysIn(+s.m, +s.y);
+    let v = parseInt(s[k],10);
+    if(!v) v = k==='d'?TODAY.d : k==='m'?TODAY.m : TODAY.y;
+    else { v += dir; if(k!=='y'){ if(v>max) v=1; if(v<1) v=max; } else v=Math.max(1,v); }
+    s[k] = k==='y' ? String(v) : pad(v);
+    S.fresh=true;
+    onUserEdit(f); render();
+  }
+
+  document.addEventListener('focusin', e=>{
+    const t=e.target;
+    if(t.classList && t.classList.contains('seg')){
+      S.activeField=t.dataset.f; S.activeSeg=t.dataset.seg; S.fresh=true;
+      render();
+    }
+  });
+  document.addEventListener('focusout', e=>{
+    const t=e.target, rel=e.relatedTarget;
+    if(t.classList && t.classList.contains('seg')){
+      const f=t.dataset.f;
+      padSeg(f,t.dataset.seg);
+      const stayField = rel && fieldEls[f].contains(rel);
+      const toCalendar = rel && calsEl.contains(rel) && rel.classList.contains('cell');
+      if(!stayField && !toCalendar){ S.show[f]=true; S.activeField=null; S.activeSeg=null; }
+      render();
+    }
+    if(t.classList && t.classList.contains('cell') && !S._internal){
+      if(!(rel && calsEl.contains(rel) && rel.classList.contains('cell'))){
+        S.gridFocused=false;
+        const toField = rel && rel.classList && rel.classList.contains('seg');
+        if(!toField && S.activeField){ S.show[S.activeField]=true; S.activeField=null; S.activeSeg=null; }
+        render();
+      }
+    }
+  });
+
+  ['from','to'].forEach(f=>{
+    const fe=fieldEls[f];
+    // Kliknięcie w pole: gdy pole nieaktywne — fokus na dniu; gdy aktywne — na klikniętym segmencie
+    fe.addEventListener('mousedown', e=>{
+      if(e.target.closest('.clear')){ e.preventDefault(); return; }
+      e.preventDefault();
+      const sg = e.target.closest('.seg');
+      if(S.activeField===f && sg) focusSeg(f, sg.dataset.seg);
+      else focusSeg(f,'d');
+    });
+    fe.querySelector('.clear').addEventListener('click', ()=>{
+      S.fields[f]=emptySegs(); onUserEdit(f);
+      focusSeg(f,'d'); S.activeSeg='d'; S.fresh=true; render();
+      announce(f==='from'?'Wyczyszczono datę początkową':'Wyczyszczono datę końcową');
+    });
+    fe.addEventListener('keydown', e=>{
+      const t=e.target; if(!t.classList.contains('seg')) return;
+      const k=t.dataset.seg;
+      if(MOBILE && /^([0-9]|ArrowUp|ArrowDown|Backspace|Delete)$/.test(e.key)){ e.preventDefault(); return; }  // mobile: tylko wybór z kalendarza
+      if(/^[0-9]$/.test(e.key)){ e.preventDefault(); typeDigit(f,k,e.key); return; }
+      switch(e.key){
+        case 'ArrowUp': e.preventDefault(); stepSeg(f,k,1); break;
+        case 'ArrowDown': e.preventDefault(); stepSeg(f,k,-1); break;
+        case 'ArrowLeft': e.preventDefault(); moveSeg(f,k,-1); break;
+        case 'ArrowRight': e.preventDefault(); moveSeg(f,k,1); break;
+        case 'Home': e.preventDefault(); focusSeg(f,'d'); break;
+        case 'End': e.preventDefault(); focusSeg(f,'y'); break;
+        case 'Backspace': {
+          e.preventDefault();
+          const s=S.fields[f];
+          if(s[k]){ s[k]=s[k].slice(0,-1); S.fresh=false; onUserEdit(f); render(); }
+          else moveSeg(f,k,-1);
+          break;
+        }
+        case 'Delete': e.preventDefault(); S.fields[f][k]=''; onUserEdit(f); render(); break;
+      }
+    });
+  });
+
+  /* ===== Kalendarz: wybór ===== */
+  function pick(D){
+    const {F,T} = effective();
+    const af = S.activeField;
+    let changed = null;
+    if(af==='from' && F && !T && key(D)===key(F)){
+      // Aktywne pole „Data od”: drugie kliknięcie w ten sam dzień też daje zakres jednodniowy
+      setField('to',D); changed='to';
+    } else if(af==='from'){
+      setField('from',D); changed='from';
+      if(T && key(D)>key(T)) setField('to',null);
+    } else if(af==='to'){
+      if(F && key(D)>key(F)){ setField('to',D); changed='to'; }
+      else if(F && key(D)===key(F)){ setField('to',D); changed='to'; }
+      else { setField('from',D); setField('to',null); changed='from'; }
+    } else {
+      if(!F || (F && T)){ setField('from',D); changed='from'; const B=parse('to'); if(!T || B.status!=='valid' || key(D)>key(B.date)) setField('to',null); }
+      else if(key(D)>key(F)){ setField('to',D); changed='to'; }
+      else if(key(D)<key(F)){ setField('from',D); changed='from'; }
+      else { setField('to',D); changed='to'; } // ten sam dzień = zakres jednodniowy
+    }
+    S.preset='custom';
+    S.show.from=false; S.show.to=false;
+    S.focusDate={...D};
+    if(af){ S.fresh=true; }
+    render();
+    // Aktywne „Data od” i wybrana data od -> aktywne staje się „Data do” (gdy data do nie ma poprawnej wartości)
+    if(af==='from' && changed==='from' && parse('to').status!=='valid') focusSeg('to','d');
+    const e2=effective();
+    announce(changed==='to' ? `Wybrano datę końcową ${longLabel(D)}. Zakres ${fmt(e2.F)} – ${fmt(e2.T)}` : `Wybrano datę początkową ${longLabel(D)}`);
+  }
+
+  calsEl.addEventListener('mousedown', e=>{
+    // Gdy pole jest aktywne, kliknięcie w kalendarz nie odbiera mu fokusu; kliknięcie dnia myszą nie przenosi fokusu
+    if(S.activeField || e.target.closest('.cell')) e.preventDefault();
+  });
+  calsEl.addEventListener('click', e=>{
+    const nav = e.target.closest('.nav');
+    if(nav){ S.view = addMonths(S.view, +nav.dataset.nav); render(); const r=addMonths(S.view,MONTHS_N-1); announce(MONTHS_N===1 ? `${MONTHS[S.view.m-1]} ${S.view.y}` : `${MONTHS[S.view.m-1]} ${S.view.y} – ${MONTHS[r.m-1]} ${r.y}`); return; }
+    const c = e.target.closest('.cell[data-k]');
+    if(c){ const k=+c.dataset.k; pick({y:Math.floor(k/10000), m:Math.floor(k/100)%100, d:k%100}); }
+  });
+  calsEl.addEventListener('mouseover', e=>{
+    const c = e.target.closest('.cell[data-k]');
+    const k = c ? +c.dataset.k : null;
+    const cur = S.hover ? key(S.hover) : null;
+    if(k!==cur){ S.hover = k ? {y:Math.floor(k/10000), m:Math.floor(k/100)%100, d:k%100} : null; renderCalendar(); }
+  });
+  calsEl.addEventListener('mouseleave', ()=>{ if(S.hover){ S.hover=null; renderCalendar(); } });
+  calsEl.addEventListener('focusin', e=>{
+    if(e.target.classList.contains('cell') && !S.gridFocused){ S.gridFocused=true; renderCalendar(); }
+  });
+  calsEl.addEventListener('keydown', e=>{
+    const c=e.target; if(!c.classList.contains('cell')) return;
+    let D=S.focusDate, nd=null;
+    switch(e.key){
+      case 'ArrowLeft': nd=addDays(D,-1); break;
+      case 'ArrowRight': nd=addDays(D,1); break;
+      case 'ArrowUp': nd=addDays(D,-7); break;
+      case 'ArrowDown': nd=addDays(D,7); break;
+      case 'Home': nd=addDays(D,-weekday(D)); break;
+      case 'End': nd=addDays(D,6-weekday(D)); break;
+      case 'PageUp': { const v=addMonths({y:D.y,m:D.m}, e.shiftKey?-12:-1); nd={...v,d:Math.min(D.d,daysIn(v.m,v.y))}; break; }
+      case 'PageDown': { const v=addMonths({y:D.y,m:D.m}, e.shiftKey?12:1); nd={...v,d:Math.min(D.d,daysIn(v.m,v.y))}; break; }
+      case 'Enter': case ' ': e.preventDefault(); pick({...D}); S._refocus=true; renderCalendar(); return;
+      default: return;
+    }
+    e.preventDefault();
+    S.hover=null;
+    if(!isVisible(nd)){
+      if(key(nd) < key({y:S.view.y,m:S.view.m,d:1})) S.view={y:nd.y,m:nd.m};
+      else S.view = addMonths({y:nd.y,m:nd.m},-(MOBILE?0:MONTHS_N-1));
+    }
+    S.focusDate=nd; S._refocus=true; S.gridFocused=true;
+    renderCalendar();
+  });
+
+  /* ===== Gotowe zakresy ===== */
+  function applyPreset(id){
+    const p = PRESETS.find(x=>x.id===id);
+    S.preset=id;
+    if(p.range){
+      const [a,b]=p.range(); setField('from',a); setField('to',b);
+      S.view=initialView(a,b); S.focusDate={...a};
+      announce(`${p.label}: ${fmt(a)} – ${fmt(b)}`);
+    }
+    S.show={from:false,to:false}; S.submitted=false;
+    render();
+  }
+  chipsEl.addEventListener('click', e=>{ const c=e.target.closest('.chip'); if(c) applyPreset(c.dataset.id); });
+  chipsEl.addEventListener('keydown', e=>{
+    const list=[...chipsEl.querySelectorAll('.chip')];
+    const i=list.indexOf(e.target); if(i<0) return;
+    let j=null;
+    if(e.key==='ArrowRight'||e.key==='ArrowDown') j=(i+1)%list.length;
+    if(e.key==='ArrowLeft'||e.key==='ArrowUp') j=(i-1+list.length)%list.length;
+    if(j===null) return;
+    e.preventDefault(); applyPreset(list[j].dataset.id); list[j].focus();
+  });
+
+  /* ===== Stopka ===== */
+  $('#btnReset').addEventListener('click', ()=>{
+    S.fields={from:emptySegs(),to:emptySegs()}; S.preset='custom';
+    S.show={from:false,to:false}; S.submitted=false;
+    S.view=initialView(null,null); S.focusDate={...TODAY};
+    render();
+    dialog.focus();   // fokus na oknie, nie na gotowym zakresie: bez obwódki fokusu na „Własny zakres dat” po otwarciu i po „Resetuj”
+    announce('Wyczyszczono zakres dat');
+  });
+  $('#btnApply').addEventListener('click', ()=>{
+    // Pusty zakres = brak filtra: „Filtruj” usuwa filtr zamiast pokazywać błąd
+    if(parse('from').status==='empty' && parse('to').status==='empty'){
+      const had=!!S.committed; S.committed=null; close();
+      if(had){ const lp=$('#livePage'); lp.textContent=''; setTimeout(()=>lp.textContent='Usunięto filtr daty', 30); }
+      return;
+    }
+    S.submitted=true; S.show={from:true,to:true};
+    render();
+    const e=errors();
+    if(e.from || e.to){
+      const f = e.from ? 'from' : 'to';
+      focusSeg(f,'d');
+      announce(e.from || e.to);
+      return;
+    }
+    const {F,T}=effective();
+    S.committed={from:F,to:T,preset:S.preset};
+    close();
+  });
+  $('#btnCancel').addEventListener('click', ()=>close());
+
+  /* ===== Otwieranie i zamykanie ===== */
+  function snapshotFromCommitted(){
+    const c=S.committed;
+    S.preset = c ? c.preset : 'custom';
+    setField('from', c ? c.from : null); setField('to', c ? c.to : null);
+    S.show={from:false,to:false}; S.submitted=false; S.activeField=null; S.activeSeg=null; S.hover=null;
+    const start = c ? c.from : TODAY;
+    S.view = initialView(c?c.from:null, c?c.to:null); S.focusDate={...start};
+  }
+  function open(){
+    snapshotFromCommitted();
+    scrim.hidden=false; $('#page').setAttribute('aria-hidden','true');
+    render();
+    dialog.focus();   // fokus na oknie, nie na gotowym zakresie: bez obwódki fokusu na „Własny zakres dat” po otwarciu i po „Resetuj”
+  }
+  function close(){
+    if(MOBILE){ S.activeField=null; document.body.classList.remove('kb-open'); }
+    if(MOBILE && !RM && !S._anim && !scrim.hidden){
+      S._anim=true; dialog.classList.add('sheet-out'); scrim.classList.add('scrim-out');
+      setTimeout(()=>{ dialog.classList.remove('sheet-out'); scrim.classList.remove('scrim-out'); dialog.style.removeProperty('--drag'); close(); S._anim=false; }, 200);
+      return;
+    }
+    scrim.hidden=true; $('#page').removeAttribute('aria-hidden');
+    renderPage();
+    renderState(errors());
+    $('#trigger').focus();
+  }
+  $('#trigger').addEventListener('click', open);
+
+  /* ===== Mobile: zmiana miesiąca gestem w bok + animacja przesunięcia ===== */
+  if(false){
+    const slideAnim = dir => { if(RM) return; const c=calsEl.querySelector('.cal'); if(c) c.animate([{transform:`translateX(${dir*48}px)`,opacity:0},{transform:'none',opacity:1}],{duration:200,easing:'ease-out'}); };
+    let sx=null, sy=null, swiped=false;
+    calsEl.addEventListener('pointerdown', e=>{ if(e.target.closest('.nav')) return; sx=e.clientX; sy=e.clientY; swiped=false; });
+    calsEl.addEventListener('pointermove', e=>{
+      if(sx===null) return;
+      const dx=e.clientX-sx, dy=e.clientY-sy;
+      if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)*1.5){
+        const dir = dx<0 ? 1 : -1; sx=null; swiped=true;
+        S.view=addMonths(S.view,dir); S.hover=null; render(); slideAnim(dir);
+        announce(`${MONTHS[S.view.m-1]} ${S.view.y}`);
+      }
+    });
+    const up=()=>{ sx=null; };
+    calsEl.addEventListener('pointerup', up); calsEl.addEventListener('pointercancel', up);
+    // Po geście nie traktujemy puszczenia palca jako kliknięcia w dzień
+    calsEl.addEventListener('click', e=>{ if(swiped){ e.stopImmediatePropagation(); e.preventDefault(); swiped=false; return; }
+      const nav=e.target.closest('.nav'); if(nav){ const d=+nav.dataset.nav; setTimeout(()=>slideAnim(d),0); } }, true);
+  }
+
+
+  /* ===== Mobile, koncept 1: symulacja klawiatury numerycznej ===== */
+  const kbEl = document.getElementById('kb');
+  function syncKeyboard(){
+    if(!MOBILE) return;
+    const show = false;  // mobile: bez wpisywania z klawiatury, tylko wybór z kalendarza
+    const h = (window.innerWidth<360 ? 216 : 260) + 44;
+    document.body.style.setProperty('--kb', h+'px');
+    const was = document.body.classList.contains('kb-open');
+    document.body.classList.toggle('kb-open', show);
+    // Po schowaniu klawiatury kalendarz wraca i pokazuje miesiąc wpisanej daty
+    if(was && !show){ const ef=effective(); const t=ef.F||ef.T; if(t){ S.view={y:t.y,m:t.m}; renderCalendar(); } }
+  }
+  // Zakończenie wpisywania: „Gotowe”, „Pokaż kalendarz”, dotknięcie poza polami
+  function closeTyping(){ S.activeField=null; S.activeSeg=null; dialog.focus(); render(); }
+  if(MOBILE){
+    document.getElementById('showCal').addEventListener('mousedown', e=>e.preventDefault());
+    document.getElementById('showCal').addEventListener('click', ()=>closeTyping());
+    kbEl.addEventListener('pointerdown', e=>e.preventDefault());   // klawiatura nie zabiera fokusu polu
+    kbEl.addEventListener('click', e=>{
+      const b=e.target.closest('[data-kb]'); if(!b) return;
+      const k=b.dataset.kb;
+      if(k==='done'){ closeTyping(); return; }
+      const t=document.activeElement;
+      if(t && t.classList.contains('seg')) t.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true,cancelable:true}));
+    });
+    // Dotknięcie pola otwiera klawiaturę; dotknięcie kalendarza ją chowa (pole zostaje aktywne)
+    ['from','to'].forEach(f=>fieldEls[f].addEventListener('pointerdown', ()=>{ S.kbSuppressed=false; }, true));
+    calsEl.addEventListener('pointerdown', e=>{ if(e.target.closest('.cell') && S.activeField){ S.kbSuppressed=true; syncKeyboard(); } }, true);
+    document.addEventListener('focusin', e=>{ if(e.target.classList && e.target.classList.contains('seg') && e.isTrusted===false){} });
+  }
+
+  /* ===== Mobile: zamykanie arkusza (X, tło, zsunięcie uchwytu) ===== */
+  if(MOBILE){
+    // Obramowanie przy przewijaniu: pod nagłówkiem po odjechaniu od góry, nad stopką gdy treść ciągnie się dalej
+    const bodyEl=calsEl, headEl=document.querySelector('.sheet-head'), footEl=document.querySelector('.footer');
+    const edges=()=>{ headEl.classList.toggle('scrolled', bodyEl.scrollTop>0); footEl.classList.toggle('more', bodyEl.scrollTop+bodyEl.clientHeight < bodyEl.scrollHeight-1); };
+    bodyEl.addEventListener('scroll', edges); new ResizeObserver(edges).observe(bodyEl); window.addEventListener('resize', edges);
+    $('#trigger').addEventListener('click', ()=>{ setTimeout(edges,0); });
+    $('#sheetClose').addEventListener('click', ()=>close());
+    // Tło zamyka arkusz tylko, gdy dotyk zaczął się i skończył na tle (zmiana układu w trakcie dotyku nie zamyka arkusza)
+    let downOnScrim=false;
+    scrim.addEventListener('pointerdown', e=>{ downOnScrim = e.target===scrim; });
+    scrim.addEventListener('click', e=>{ if(e.target===scrim && downOnScrim) close(); downOnScrim=false; });
+    const h=$('#sheetHandle'); let y0=null, dy=0;
+    h.addEventListener('pointerdown', e=>{ y0=e.clientY; dy=0; h.setPointerCapture(e.pointerId); dialog.style.animation='none'; });
+    h.addEventListener('pointermove', e=>{ if(y0===null) return; dy=Math.max(0,e.clientY-y0); dialog.style.transform=`translateY(${dy}px)`; });
+    const end=()=>{ if(y0===null) return; y0=null;
+      if(dy>80){ dialog.style.setProperty('--drag', dy+'px'); dialog.style.transform=''; dialog.style.animation=''; close(); }
+      else { dialog.style.transition='transform .2s ease-out'; dialog.style.transform=''; setTimeout(()=>{ dialog.style.transition=''; dialog.style.animation=''; },200); } };
+    h.addEventListener('pointerup', end); h.addEventListener('pointercancel', end);
+  }
+
+
+  /* ===== Punkt wejścia: przycisk Data + FilterTag + lista ===== */
+  const OPS = [
+    ['2026-11-19','Zakupy','−87,40 zł'],['2026-11-18','Paliwo','−212,15 zł'],['2026-11-15','Prąd','−318,60 zł'],
+    ['2026-11-10','Jedzenie','−64,90 zł'],['2026-11-03','Internet','−89,00 zł'],['2026-10-28','Woda','−142,30 zł'],
+    ['2026-10-20','Telefon','−129,99 zł'],['2026-10-12','Zakupy','−256,75 zł'],
+    ['2026-10-05','Paliwo','−198,40 zł'],['2026-09-30','Jedzenie','−52,00 zł']
+  ].map(([d,n,a])=>{const [y,m,dd]=d.split('-').map(Number); return {date:{y,m,d:dd},name:n,amount:a};});
+
+  function renderPage(){
+    const c=S.committed;
+    const ftag=$('#ftag');
+    ftag.hidden = !c;
+    if(c){
+      const val = key(c.from)===key(c.to) ? fmt(c.from) : `${fmt(c.from)} – ${fmt(c.to)}`;
+      $('#ftagValue').textContent = val;
+      $('#ftagX').setAttribute('aria-label', `Usuń filtr: data ${val}`);
+      $('#trigger').setAttribute('aria-label', `Data, wybrany zakres ${val}`);
+    } else {
+      $('#trigger').removeAttribute('aria-label');
+    }
+    const list = c ? OPS.filter(o=>key(o.date)>=key(c.from) && key(o.date)<=key(c.to)) : OPS;
+    $('#count').textContent = c ? `Wyświetlono ${list.length} z ${OPS.length} operacji` : `Wszystkie operacje: ${OPS.length}`;
+    $('#rows').innerHTML = list.length
+      ? list.map(o=>`<div><span class="date">${fmt(o.date)}</span><span class="name">${o.name}</span><span>${o.amount}</span></div>`).join('')
+      : `<div class="empty-row">Brak operacji w wybranym zakresie dat</div>`;
+  }
+  $('#ftagX').addEventListener('click', ()=>{
+    S.committed=null;
+    renderPage(); renderState(errors());
+    $('#trigger').focus();
+    const lp=$('#livePage'); lp.textContent=''; setTimeout(()=>lp.textContent='Usunięto filtr daty', 30);
+  });
+
+  // Esc = Anuluj, pułapka fokusu
+  dialog.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ e.preventDefault(); close(); return; }
+    if(e.key!=='Tab') return;
+    const all=[...dialog.querySelectorAll('button,[tabindex="0"]')].filter(el=>!el.hidden && el.offsetParent!==null && el.tabIndex>=0);
+    let cur=document.activeElement;
+    if(cur.classList.contains('seg')) cur=seg(cur.dataset.f,'d');
+    let i=all.indexOf(cur);
+    e.preventDefault();
+    if(i<0) i = e.shiftKey ? 0 : -1;
+    const next = all[(i + (e.shiftKey?-1:1) + all.length) % all.length];
+    next.focus();
+  });
+  // Kliknięcie w tło okna (poza polami i kalendarzem) zdejmuje fokus z pola
+  dialog.addEventListener('mousedown', e=>{
+    if(e.target.closest('.field') || e.target.closest('#cals') || e.target.closest('button')) return;
+    e.preventDefault(); dialog.focus();
+  });
+
+
+  renderPage(); renderState(errors());
+})();
+<\/script>
+</body>
+</html>
+</script>
+<script type="text/plain" id="src-k2"><!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DateRangeDialog — koncept 2 (pola tylko do odczytu)</title>
+<style>
+  :root{
+    --navy:#0a0a6b; --navy-ink:#13137a; --text:#1b1b2b; --muted:#6b6f80;
+    --line:#c9ccd6; --line-strong:#8a8fa3; --focus:#2b3fcf; --error:#e0173f;
+    --band:#cfd8ea; --band-preview:#e3e9f4; --hover:#f3e3f7;
+    --chip-on:#dfe5fd; --chip-on-line:#4b5bd6; --page:#f4f5f8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--text);background:var(--page)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* --- Strona w tle --- */
+  .page{max-width:960px;margin:0 auto;padding:40px 24px}
+  .page h1{font-size:26px;font-weight:600;margin:0 0 20px}
+  .toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px}
+  .trigger{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 12px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;font:inherit;font-size:15px;color:var(--text);cursor:pointer;transition:border-color .15s ease-in-out}
+  .trigger:hover{border-color:var(--navy)}
+  .trigger:focus-visible,.ftag-x:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .trigger svg{color:var(--navy)}
+  .ftag{display:inline-flex;align-items:center;gap:2px;height:32px;padding:0 4px 0 12px;border-radius:16px;background:var(--chip-on);font-size:14px;color:var(--text)}
+  .ftag[hidden]{display:none}
+  .ftag b{font-weight:600;margin-right:4px}
+  .ftag-x{width:28px;height:28px;border:0;border-radius:50%;background:none;color:var(--navy);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color .15s ease-in-out}
+  .ftag-x:hover{background:rgba(10,10,107,.1)}
+  .count{font-size:13px;color:var(--muted);margin:0 0 10px}
+  .rows .date{color:var(--muted);width:110px;flex:none}
+  .rows .name{flex:1}
+  .rows .empty-row{justify-content:center;color:var(--muted)}
+  .rows{background:#fff;border-radius:12px;padding:8px 0}
+  .rows div{display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #eef0f4;font-size:14px}
+  .rows div>span:last-child{white-space:nowrap;padding-left:16px}
+  .rows div:last-child{border-bottom:0}
+
+  /* --- Panel stanu --- */
+  .state{position:fixed;left:16px;top:16px;width:270px;background:#1c1d29;color:#e8e9f0;border-radius:12px;padding:14px 16px;font-size:12px;line-height:1.5;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .state h2{font-size:12px;margin:0 0 8px;color:#fff;letter-spacing:.02em;display:flex;justify-content:space-between;align-items:center}
+  .state button{background:none;border:0;color:#a9acc0;cursor:pointer;font:inherit;font-size:11px}
+  .state dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+  .state dt{color:#9a9db2}
+  .state dd{margin:0;font-family:ui-monospace,Menlo,monospace;word-break:break-word}
+  .state.collapsed dl{display:none}
+
+  /* --- Scrim i dialog --- */
+  .scrim{position:fixed;inset:0;background:rgba(20,20,32,.45);display:flex;align-items:center;justify-content:center;z-index:10;padding:20px}
+  .scrim[hidden]{display:none}
+  .dialog{background:#fff;border-radius:20px;width:656px;max-width:100%;box-shadow:0 12px 40px rgba(0,0,0,.18);outline:none}
+  .body{padding:28px 36px 24px}
+
+  /* Gotowe zakresy */
+  .chips{display:flex;flex-wrap:wrap;gap:8px 8px;margin-bottom:28px}
+  .chip{height:32px;padding:0 15px;border:1px solid var(--line);border-radius:16px;background:#fff;font:inherit;font-size:14px;color:var(--text);cursor:pointer;transition:background-color .15s ease-in-out,border-color .15s ease-in-out}
+  .chip:hover{border-color:var(--line-strong)}
+  .chip[aria-checked="true"]{background:var(--chip-on);border-color:var(--chip-on-line)}
+  .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+  /* Pola dat */
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
+  .label{display:block;font-size:13px;margin-bottom:4px}   /* Input: Label → pole 4 px */
+  .field{position:relative;display:flex;align-items:center;height:40px;border:1px solid var(--line-strong);border-radius:6px;padding:0 12px;background:#fff;cursor:text;transition:border-color .15s ease-in-out,box-shadow .15s ease-in-out}
+  .field:hover{border-color:var(--text)}
+  .field.invalid{border-color:var(--error)}
+  .field.active{border-color:var(--focus);box-shadow:inset 0 0 0 .5px var(--focus)}
+  .segs{display:flex;align-items:center;font-size:15px;font-variant-numeric:tabular-nums;flex:1;min-width:0}
+  .seg{padding:1px 1px;border-radius:3px;outline:none;caret-color:transparent}
+  .seg.ph{color:var(--muted)}
+  .sep{padding:0 1px}
+  .sep.ph{color:var(--muted)}
+  .field.active .seg.on{background:var(--navy);color:#fff}
+  .clear{display:none;width:26px;height:26px;margin-right:-5px;border:0;background:none;border-radius:50%;cursor:pointer;color:var(--navy);align-items:center;justify-content:center}
+  .clear:hover{background:var(--hover)}
+  .field.active.has-value .clear{display:flex}
+  .err{color:var(--error);font-size:13px;line-height:1.45;margin-top:4px;min-height:0}   /* Input: pole → ValidationText 4 px */
+  .err:empty{display:none}
+
+  /* Kalendarz */
+  .cals{display:grid;grid-template-columns:280px 280px;justify-content:space-between}
+  .cal-head{display:flex;align-items:center;height:36px;margin-bottom:10px;position:relative}
+  .cal-title{flex:1;text-align:center;font-size:17px}
+  .nav{position:absolute;top:2px;width:32px;height:32px;border:0;background:none;border-radius:50%;cursor:pointer;color:var(--navy);display:flex;align-items:center;justify-content:center}
+  .nav:hover{background:var(--hover)}
+  .nav:focus-visible{outline:2px solid var(--focus)}
+  .nav.prev{left:0}.nav.next{right:0}
+  .grid{display:grid;grid-template-columns:repeat(7,40px);row-gap:4px}
+  .wd{height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted)}
+  .cell{position:relative;height:40px;display:flex;align-items:center;justify-content:center;outline:none}
+  .cell.empty{pointer-events:none}
+  .band{position:absolute;top:2px;bottom:2px;left:0;right:0;background:var(--band)}
+  .band.preview{background:var(--band-preview)}
+  .cell.start .band{left:50%}
+  .cell.end .band{right:50%}
+  .cell.start.end .band{display:none}
+  .day{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:15px;color:var(--navy-ink);cursor:pointer;transition:background-color .15s ease-in-out,color .15s ease-in-out}
+  .day::before{content:"";position:absolute;inset:-2px;border-radius:50%;background:var(--hover);opacity:0;transition:opacity .15s ease-in-out;z-index:-1}
+  .cell:hover .day::before,.cell.kbd-hover .day::before{opacity:1}
+  .day span{position:relative}
+  .cell.start .day,.cell.end .day{background:var(--navy);color:#fff}
+  .cell.start .day::before,.cell.end .day::before{display:none}
+  /* Dzisiejsza data: podpis „dziś” pod numerem dnia (desktop i mobile) */
+  .cell.today .day span{transform:translateY(-5px)}
+  .cell.today .day::after{content:"dziś";position:absolute;left:0;right:0;bottom:4px;font-size:10px;line-height:1;text-align:center;color:inherit}
+  .cell:focus-visible .day{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--focus)}
+  .day{z-index:1}
+
+  /* Stopka */
+  .footer{display:flex;align-items:center;gap:16px;border-top:1px solid #e3e5ea;padding:18px 32px 20px 36px}
+  .footer .spacer{flex:1}
+  .btn{height:40px;padding:0 20px;border-radius:6px;font:inherit;font-size:15px;cursor:pointer;transition:background-color .15s ease-in-out,border-color .15s ease-in-out}
+  .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .btn-text{border:0;background:none;color:var(--navy);padding:0 4px;margin-left:-4px}
+  .btn-text:hover{text-decoration:underline}
+  .btn-sec{border:1px solid var(--line);background:#fff;color:var(--text)}
+  .btn-sec:hover{border-color:var(--line-strong)}
+  .btn-pri{border:1px solid var(--navy);background:var(--navy);color:#fff}
+  .btn-pri:hover{background:#1c1c86}
+
+  @media (min-width:1320px){ body.with-state .scrim{padding-left:300px} body.with-state .page{max-width:none;padding-left:326px;padding-right:40px} }
+  @media (max-width:1319px){ .state:not(.open){display:none} }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+  /* Koncept 2: pola tylko do odczytu */
+  /* Wygląd jak pola w koncepcie 1 (białe tło, ta sama ramka), bez wpisywania */
+  .field.ro{width:100%;height:40px;padding:0 12px;font:inherit;font-size:15px;font-variant-numeric:tabular-nums;color:var(--text);background:#fff;border:1px solid var(--line-strong);border-radius:6px;cursor:pointer;outline:none;caret-color:transparent;transition:border-color .15s ease-in-out,box-shadow .15s ease-in-out}
+  .field.ro::placeholder{color:var(--muted);opacity:1}
+  .field.ro:hover{border-color:var(--text)}
+  .field.ro.invalid{border-color:var(--error)}
+  /* Pole aktywne: ramka w kolorze primary, grubsza o 1 px */
+  .field.ro.target{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}
+  .label.next{color:var(--focus);font-weight:600}
+  /* Czyszczenie daty: przycisk w uzupełnionym polu */
+  .robox{position:relative}
+  .robox .field.ro.filled{padding-right:41px}
+  .ro-clear{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:26px;height:26px;border:0;background:none;border-radius:50%;cursor:pointer;color:var(--navy);display:flex;align-items:center;justify-content:center}
+  .ro-clear[hidden]{display:none}
+  .ro-clear:hover{background:var(--hover)}
+  .ro-clear:focus-visible{outline:2px solid var(--focus)}
+  /* Mobile: przycisk 24×24 (WCAG 2.5.8), żeby pełna data mieściła się obok niego na 320 px */
+  @media (max-width:639px){ .field.ro{font-variant-numeric:normal} .robox .field.ro.filled{padding:0 31px 0 8px} .ro-clear{right:3px;width:26px;height:26px} .ro-clear svg{width:18px;height:18px} }
+  .variant{font-size:13px;color:var(--muted);margin:-12px 0 20px}
+
+  /* ===== Mobile: BottomSheet (szerokość 320–639) ===== */
+  .sheet-head{display:none}
+  @media (max-width:639px){
+    .page{padding:20px 16px}
+    .page h1{font-size:22px;margin-bottom:14px}
+    .variant{display:none}
+    .rows div{padding:12px 14px}
+    .rows .date{width:92px}
+    /* Lista na telefonie: nazwa i kwota w pierwszej linii, data pod nazwą (kwota nigdy się nie łamie) */
+    .rows div:not(.empty-row){display:grid;grid-template-columns:1fr auto;column-gap:12px;row-gap:2px;align-items:baseline}
+    .rows .name{grid-column:1;grid-row:1;min-width:0}
+    .rows div>span:last-child{grid-column:2;grid-row:1;white-space:nowrap;text-align:right;padding-left:0}
+    .rows .date{grid-column:1;grid-row:2;width:auto;font-size:13px}
+    .scrim{align-items:flex-end;padding:0}
+    .dialog{width:100%;max-width:600px;max-height:80vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;animation:sheetIn .3s ease-out;touch-action:pan-y}
+    .dialog.sheet-out{animation:sheetOut .2s ease-in forwards}
+    .scrim{animation:scrimIn .3s ease-out}
+    .scrim.scrim-out{animation:scrimOut .2s ease-in forwards}
+    .sheet-head{display:flex;align-items:center;position:relative;padding:20px 8px 4px 16px;flex:none}
+    .sheet-handle{position:absolute;top:0;left:50%;transform:translateX(-50%);width:96px;height:24px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
+    .sheet-handle::before{content:"";width:36px;height:4px;border-radius:2px;background:#c3c7d6}
+    .sheet-title{flex:1;font-size:18px;font-weight:600;margin:0}
+    .sheet-close{width:44px;height:44px;border:0;background:none;border-radius:50%;color:var(--navy);display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .sheet-close:focus-visible{outline:2px solid var(--focus)}
+    .dhead{padding:8px 16px 14px;gap:24px;border-radius:0}
+    .dh-col{min-width:0;flex:1}
+    .dh-value{font-size:16px}
+    .body{padding:12px 16px 16px;overflow:auto;flex:1;overscroll-behavior:contain}
+    .chips{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 20px;padding:0 16px 2px;scrollbar-width:none}
+    .chips::-webkit-scrollbar{display:none}
+    .chip{flex:none}
+    .fields{gap:12px;margin-bottom:20px}
+    .field{padding:0 10px}
+    .segs{font-size:15px}
+    .field.ro{font-size:16px;padding:0 10px}
+    .cals{grid-template-columns:1fr;justify-content:stretch}
+    .cal-head{margin-bottom:6px}
+    .grid{grid-template-columns:repeat(7,1fr)}
+    .cell{height:44px}
+    .day{width:40px;height:40px}
+    .footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom));flex:none;gap:12px}
+    #btnCancel{display:none}
+    #btnApply{min-width:140px}
+  }
+
+  /* ===== Mobile: zgodnie ze specyfikacją BottomSheet (przyciski stopki jeden pod drugim) ===== */
+  @media (max-width:639px){
+    .sheet-head{padding:20px 4px 8px 16px}
+    .footer{flex-direction:column;align-items:stretch;gap:8px;padding:12px 16px calc(16px + env(safe-area-inset-bottom))}
+    .footer .spacer{display:none}
+    #btnApply{order:-1;width:100%;min-width:0;height:44px}
+    #btnReset{width:100%;height:44px;margin:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--text);text-decoration:none}
+    #btnReset:hover{text-decoration:none;border-color:var(--line-strong)}
+    .nav{width:44px;height:44px;top:-4px}
+    .nav.prev{left:-8px}.nav.next{right:-8px}
+    .field.ro{text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+    .body{overflow-x:hidden}
+    .cal-head{position:sticky;top:-12px;z-index:3;background:#fff;padding-top:4px;height:44px}
+    .sheet-head{border-bottom:1px solid transparent;transition:border-color .15s ease-in-out}
+    .sheet-head.scrolled{border-bottom-color:#e3e5ea}
+    .footer{border-top:1px solid transparent;transition:border-color .15s ease-in-out}
+    .footer.more{border-top-color:#e3e5ea}
+  }
+  /* Najwęższe ekrany (320–359) */
+  @media (max-width:359px){
+    .fields{gap:8px}
+    .field{padding:0 8px}
+    .segs{font-size:14px}
+    .clear{width:26px;height:26px;margin-right:-5px}
+    .clear svg{width:18px;height:18px}
+    .day{width:36px;height:36px;font-size:14px}
+    .cell{height:40px}
+    .dhead{gap:12px}
+    .dh-value{font-size:15px}
+    .chip{font-size:13px;padding:0 12px}
+  }
+
+  /* ===== Mobile: stała wysokość 80% ekranu, przesuwanie miesięcy gestem ===== */
+  @media (max-width:639px){
+    .dialog{height:80vh;height:80dvh;max-height:none}
+    .cals{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  }
+
+  /* ===== Mobile: przewijana w pionie lista miesięcy, wybrane daty zawsze widoczne ===== */
+  .wd-sticky{display:none}
+  @media (max-width:639px){
+    .body{display:flex;flex-direction:column;overflow:hidden !important;padding-bottom:0}
+    .chips,.fields{flex:none}
+    .cals{display:block;flex:1;min-height:0;overflow-y:auto;position:relative;margin:0 -16px;padding:0 16px 16px;overscroll-behavior:contain;border-top:1px solid #e3e5ea}
+    .wd-sticky{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(7,1fr);height:32px;align-items:center;background:#fff;font-size:13px;color:var(--muted);text-align:center;margin:0 -16px;padding:0 16px;box-shadow:0 1px 0 #eef0f4}
+    .cals .nav{display:none}
+    .cals .cal-head{position:static !important;height:auto !important;margin:14px 0 6px;padding:0 !important;background:none}
+    .cals .cal-title{text-align:left;font-size:15px;font-weight:600}
+    .cals .grid .wd{display:none}
+    .fields{margin-bottom:14px}
+    .chips{margin-bottom:14px}
+  }
+
+  /* ===== Mobile: wybrane daty w nagłówku arkusza (wzorzec Material: mały tytuł + wybór jako główny tekst) ===== */
+  @media (max-width:639px){
+    .sheet-head{align-items:flex-start;padding:18px 4px 0 16px;border-bottom:0 !important}
+    .sheet-title{font-size:13px;font-weight:500;color:var(--muted);padding-top:12px}
+    .sheet-close{margin-top:-2px}
+    /* koncept 3: Od / Do jako część nagłówka */
+    .dhead{padding:2px 16px 14px;gap:16px;border-bottom:1px solid #e3e5ea}
+    .dhead ~ .body .chips{margin-top:12px}
+    .dh-label{font-size:12px;margin-bottom:2px}
+    .dh-value{font-size:18px;font-weight:600}
+    .dh-value.ph{font-size:18px;font-weight:400}
+    .dh-value.invalid{font-size:15px;font-weight:500}
+    /* koncepty 1 i 2: pola jako część nagłówka, nad gotowymi zakresami */
+    .body{padding-top:0}
+    .fields{order:-1;margin:0 -16px 12px;padding:2px 16px 14px;border-bottom:1px solid #e3e5ea}
+    .chips{margin-bottom:12px}
+  }
+
+  /* ===== Mobile: bez tytułu „Zakres dat” — wybór jest pierwszą treścią arkusza, krzyżyk w rogu ===== */
+  @media (max-width:639px){
+    /* Nagłówek wg specyfikacji (układ wyśrodkowany): 8 uchwyt 12, rząd z X (40), 16 odstępu, potem treść na całą szerokość */
+    .sheet-head{padding:0;height:20px;position:relative}
+    .sheet-title{display:none}
+    /* BottomSheet: przycisk zamknięcia przy górnej krawędzi tekstu (środek ikony = środek pierwszej linii), 16 px od prawej krawędzi */
+    /* Wg specyfikacji BottomSheet: X w kolumnie 16 px od prawej krawędzi, 16 px odstępu od treści; środek ikony na wysokości pierwszej linii tekstu */
+    /* X obok treści: ikona 16 px od prawej krawędzi, środek ikony na wysokości pierwszej linii tekstu */
+    .sheet-close{position:absolute;top:12px;right:6px;width:40px;height:40px;margin-top:0;z-index:5}
+    /* Uchwyt: obszar dotyku min. 44 px wysokości (specyfikacja), kreska bez zmian */
+    /* Uchwyt: 8 px od górnej krawędzi, 12 px do treści (specyfikacja); obszar dotyku 44 px */
+    .sheet-handle{height:44px;align-items:flex-start;padding-top:8px;box-sizing:border-box;z-index:4}
+    .dhead{padding:4px 52px 20px 16px}   /* 16 px odstępu od ikony X; 20 px pod treścią nagłówka */
+    .fields{padding-top:4px}
+    /* Kolumna przycisku zamknięcia: pod nim nic nie stoi (pola nie wchodzą pod X) */
+    .fields{padding-right:52px;padding-bottom:20px}   /* 16 px odstępu od ikony X; 20 px pod treścią nagłówka */
+  }
+
+  /* ===== Mobile: arkusz 90% ekranu, wskazanie następnej daty, „dziś” w kalendarzu ===== */
+  @media (max-width:639px){
+    .dialog{height:90vh;height:90dvh}
+    /* Następna data do wybrania: etykieta w kolorze akcentu (bez ramek) */
+    .label.next,.dh-label.next{color:var(--focus);font-weight:600}
+    .dh-value.next{color:var(--focus);font-weight:500}
+    /* Koncept 3: „Od” i „Do” w dwóch liniach, pełne nazwy miesięcy */
+    .dhead{flex-direction:column;gap:2px}
+    .dh-col{display:flex;align-items:baseline;gap:10px;min-width:0}
+    .dh-label{width:24px;flex:none;margin:0;font-size:13px}
+    .dh-value,.dh-value.ph{font-size:17px}
+    .dh-value.invalid{font-size:15px}
+  }
+
+  /* ===== Mobile: stopka w jednym rzędzie — wg specyfikacji BottomSheet przyciski stoją obok siebie, jeden pod drugim tylko gdy się nie mieszczą ===== */
+  @media (max-width:639px){
+    .footer{flex-direction:row;gap:8px}
+    #btnApply{order:2;flex:1}
+    #btnReset{order:1;flex:1}
+    #btnReset[hidden]{display:none}
+  }
+  @keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes sheetOut{from{transform:translateY(var(--drag,0))}to{transform:translateY(100%)}}
+  @keyframes scrimIn{from{background:rgba(20,20,32,0)}to{background:rgba(20,20,32,.45)}}
+  @keyframes scrimOut{from{background:rgba(20,20,32,.45)}to{background:rgba(20,20,32,0)}}
+  @media (prefers-reduced-motion: reduce){ .dialog,.scrim,.dialog.sheet-out,.scrim.scrim-out{animation:none !important} }
+  .dialog:focus{outline:none}
+  /* InputField: desktop rozmiar M = 40 px, mobile zawsze 48 px */
+  @media (max-width:639px){ .field,.field.ro{height:48px} }
+  /* ===== Pola wg specyfikacji Input / InputField ===== */
+  .label{font-size:14px;line-height:20px}
+  .field.ro{border-radius:8px;padding:0 12px;font-size:16px;line-height:24px}   /* radius-s = 8 px, odstęp wewnętrzny 12 px */
+  .robox .field.ro.filled{padding:0 46px 0 12px}                /* 8 px do ClearButton 26 px + 12 px */
+  .ro-clear{right:12px}
+  @media (max-width:639px){ .field.ro{font-variant-numeric:normal} }
+  /* Za wąskie pole (320–359): odstępy zostają jak w specyfikacji, data w aktywnym polu jest przycinana (bez wielokropka) */
+  .field.ro{text-overflow:clip}
+</style>
+</head>
+<body>
+
+<main class="page" aria-hidden="false" id="page">
+  <h1>Historia operacji</h1>
+  <p class="variant">Koncept 2 — pola dat tylko do odczytu, wybór wyłącznie w kalendarzu</p>
+  <div class="toolbar">
+    <button class="trigger" id="trigger" type="button" aria-haspopup="dialog">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 8.5h14M7 2.75v3.5M13 2.75v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Data
+    </button>
+    <span class="ftag" id="ftag" hidden>
+      <b>Data:</b><span id="ftagValue"></span>
+      <button class="ftag-x" id="ftagX" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </span>
+  </div>
+  <p class="count" id="count" aria-live="polite"></p>
+  <div class="rows" id="rows" aria-label="Operacje"></div>
+  <div class="sr" aria-live="polite" id="livePage"></div>
+</main>
+
+
+<div class="scrim" id="scrim" hidden>
+  <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle" tabindex="-1">
+    <h2 class="sr" id="dlgTitle">Wybierz zakres dat</h2>
+    <div class="sheet-head">
+      <div class="sheet-handle" id="sheetHandle" aria-hidden="true"></div>
+      <p class="sheet-title" aria-hidden="true">Zakres dat</p>
+      <button class="sheet-close" type="button" id="sheetClose" aria-label="Zamknij bez zmian">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="body">
+      <div class="chips" id="chips" role="radiogroup" aria-label="Gotowe zakresy dat"></div>
+
+      <div class="fields">
+        <div class="fieldwrap">
+          <label class="label" for="in-from">Data od</label>
+          <div class="robox">
+            <input class="field ro" id="in-from" type="text" readonly tabindex="0" placeholder="Wybierz datę z kalendarza" aria-describedby="err-from">
+            <button class="ro-clear" type="button" data-f="from" hidden aria-label="Wyczyść datę początkową"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/><path d="M7.2 7.2l5.6 5.6M12.8 7.2l-5.6 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+          <div class="err" id="err-from"></div>
+        </div>
+        <div class="fieldwrap">
+          <label class="label" for="in-to">Data do</label>
+          <div class="robox">
+            <input class="field ro" id="in-to" type="text" readonly tabindex="0" placeholder="Wybierz datę z kalendarza" aria-describedby="err-to">
+            <button class="ro-clear" type="button" data-f="to" hidden aria-label="Wyczyść datę końcową"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/><path d="M7.2 7.2l5.6 5.6M12.8 7.2l-5.6 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+          <div class="err" id="err-to"></div>
+        </div>
+      </div>
+
+      <div class="cals" id="cals"></div>
+    </div>
+    <div class="footer">
+      <button class="btn btn-text" type="button" id="btnReset">Resetuj</button>
+      <span class="spacer"></span>
+      <button class="btn btn-sec" type="button" id="btnCancel">Anuluj</button>
+      <button class="btn btn-pri" type="button" id="btnApply">Filtruj</button>
+    </div>
+    <div class="sr" aria-live="polite" id="live"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* ===== Daty ===== */
+  const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+  const MONTHS_GEN = ['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
+  const WD_SHORT = ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
+  const WD_FULL = ['poniedziałek','wtorek','środa','czwartek','piątek','sobota','niedziela'];
+
+  const now = new Date();
+  const TODAY = {y:now.getFullYear(), m:now.getMonth()+1, d:now.getDate()};
+  const key = o => o.y*10000 + o.m*100 + o.d;
+  const unkey = k => ({y:Math.floor(k/10000), m:Math.floor(k/100)%100, d:k%100});
+  const fromJs = dt => ({y:dt.getFullYear(), m:dt.getMonth()+1, d:dt.getDate()});
+  const addDays = (o,n) => fromJs(new Date(o.y, o.m-1, o.d+n));
+  const daysIn = (m,y) => new Date(y, m, 0).getDate();
+  const addMonths = (v,n) => { const dt = new Date(v.y, v.m-1+n, 1); return {y:dt.getFullYear(), m:dt.getMonth()+1}; };
+  // Właściwość Direction: Past = bieżący miesiąc po prawej (historia), Future = bieżący po lewej (planowane)
+  const DIRECTION = /*DIRECTION*/'past';
+  // Mobile (320–639): arkusz od dołu i jeden miesiąc kalendarza
+  const MOBILE = window.matchMedia('(max-width:639px)').matches;
+  const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Mobile: okno miesięcy przewijane w pionie (Past: 24 miesiące wstecz do bieżącego, Future: bieżący i 24 naprzód)
+  let MONTHS_N = MOBILE ? 25 : 2;
+  const WIN = { start: DIRECTION==='past' ? addMonths({y:TODAY.y,m:TODAY.m},-24) : {y:TODAY.y,m:TODAY.m} };
+  const mkey2 = v => v.y*12 + v.m;
+  function initialView(from,to){
+    if(MOBILE){ const t = from||to||TODAY; return {y:t.y,m:t.m}; }  // mobile: przewiń do miesiąca początku zakresu (albo bieżącego)
+    if(DIRECTION==='past'){ const end = to || from || TODAY; return addMonths({y:end.y,m:end.m},-(MOBILE?0:MONTHS_N-1)); }
+    const s0 = from || TODAY; return {y:s0.y, m:s0.m};
+  }
+  const same = (a,b) => !!(a && b && key(a)===key(b));
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = o => o ? `${pad(o.d)}.${pad(o.m)}.${o.y}` : '—';
+  const weekday = o => (new Date(o.y,o.m-1,o.d).getDay()+6)%7;
+  const longLabel = o => `${WD_FULL[weekday(o)]}, ${o.d} ${MONTHS_GEN[o.m-1]} ${o.y}`;
+
+  /* ===== Gotowe zakresy ===== */
+  const PRESETS = [
+    {id:'custom', label:'Własny zakres dat'},
+    {id:'last3',  label:'Ostatnie 3 dni',   range:()=>[addDays(TODAY,-2), TODAY]},
+    {id:'month',  label:'Bieżący miesiąc',  range:()=>[{y:TODAY.y,m:TODAY.m,d:1}, TODAY]},
+    {id:'last30', label:'Ostatnie 30 dni',  range:()=>[addDays(TODAY,-29), TODAY]},
+    {id:'next3',  label:'Przyszłe 3 dni',   range:()=>[TODAY, addDays(TODAY,2)]},
+    {id:'next30', label:'Przyszłe 30 dni',  range:()=>[TODAY, addDays(TODAY,29)]},
+  ];
+
+  const MSG_PICK = 'Zaznacz datę w kalendarzu.';
+
+  /* ===== Stan ===== */
+  const S = {
+    activeField: null,   // pole wskazane kliknięciem; null = kalendarz sam wybiera kolejną datę
+    preset:'custom', from:null, to:null,
+    view:initialView(null,null),
+    hover:null, gridFocused:false, focusDate:{...TODAY},
+    submitted:false, committed:null
+  };
+  const errors = () => ({
+    from: S.submitted && !S.from ? MSG_PICK : null,
+    to:   S.submitted && !S.to   ? MSG_PICK : null
+  });
+
+  const isVisible = o => { for(let i=0;i<MONTHS_N;i++){ const v=addMonths(S.view,i); if(o.y===v.y&&o.m===v.m) return true; } return false; };
+
+  /* ===== Elementy ===== */
+  const $ = s => document.querySelector(s);
+  const scrim=$('#scrim'), dialog=$('#dialog'), chipsEl=$('#chips'), calsEl=$('#cals'), live=$('#live');
+  const inEl = {from:$('#in-from'), to:$('#in-to')};
+  // Na telefonie krótsza podpowiedź, żeby mieściła się w połowie szerokości ekranu
+  if(MOBILE){ inEl.from.placeholder='Wybierz datę'; inEl.to.placeholder='Wybierz datę'; }
+
+  PRESETS.forEach(p=>{
+    const b=document.createElement('button');
+    b.type='button'; b.className='chip'; b.textContent=p.label; b.dataset.id=p.id;
+    b.setAttribute('role','radio');
+    chipsEl.appendChild(b);
+  });
+
+  function announce(t){ live.textContent=''; setTimeout(()=>live.textContent=t, 30); }
+
+  /* ===== Render ===== */
+  function render(){
+    chipsEl.querySelectorAll('.chip').forEach(c=>{
+      const on = c.dataset.id===S.preset;
+      c.setAttribute('aria-checked', on);
+      c.tabIndex = on ? 0 : -1;
+    });
+    const e = errors();
+    ['from','to'].forEach(f=>{
+      inEl[f].value = S[f] ? fmt(S[f]) : '';
+      inEl[f].classList.toggle('invalid', !!e[f]);
+      inEl[f].setAttribute('aria-invalid', e[f] ? 'true' : 'false');
+      $('#err-'+f).textContent = e[f] || '';
+      // Mobile: etykieta daty, którą ustawi następne kliknięcie w kalendarzu
+      // Aktywne pole: wskazane kliknięciem, a jeśli żadne — to, które ustawi następne kliknięcie w kalendarzu
+      { const next = !S.from ? 'from' : (!S.to ? 'to' : null);
+        const target = S.activeField || next;
+        document.querySelector(`label[for="in-${f}"]`).classList.toggle('next', target===f && !e[f]);
+        inEl[f].classList.toggle('target', target===f && !e[f]);
+        // X tylko w aktywnym, uzupełnionym polu (jak w koncepcie 1)
+        const showX = target===f && !!S[f];
+        inEl[f].classList.toggle('filled', showX);
+        document.querySelector(`.ro-clear[data-f="${f}"]`).hidden = !showX; }
+    });
+    renderCalendar();
+    $('#btnReset').hidden = !(S.from || S.to || S.preset!=='custom');
+    renderState(e);
+  }
+
+  // Podgląd zakresu: gdy jest początek bez końca, najechanie (lub fokus klawiatury) na późniejszy dzień
+  function previewRange(){
+    const H = S.hover || (S.gridFocused ? S.focusDate : null);
+    if(H && S.from && !S.to && key(H)>key(S.from)) return [S.from, H];
+    return null;
+  }
+
+  // Mobile: S.view wskazuje miesiąc do pokazania; lista zostaje, a kalendarz przewija się do tego miesiąca
+  function mobileWindow(){
+    const t=S.view;
+    if(t.y===WIN.start.y && t.m===WIN.start.m && !S._scrollTo) return;
+    if(!(t.y===WIN.start.y && t.m===WIN.start.m)){
+      if(mkey2(t)<mkey2(WIN.start)){ MONTHS_N += mkey2(WIN.start)-mkey2(t); WIN.start={y:t.y,m:t.m}; }
+      const last=addMonths(WIN.start,MONTHS_N-1); if(mkey2(t)>mkey2(last)) MONTHS_N += mkey2(t)-mkey2(last);
+      S._scrollTo={y:t.y,m:t.m}; S.view={...WIN.start};
+    }
+  }
+  function renderCalendar(){
+    if(MOBILE) mobileWindow();
+    const F=S.from, T=S.to, pv=previewRange();
+    const lo = pv ? pv[0] : F, hi = pv ? pv[1] : T;
+    if(!isVisible(S.focusDate)) S.focusDate = (F && isVisible(F)) ? {...F} : (isVisible(TODAY) ? {...TODAY} : {y:S.view.y,m:S.view.m,d:1});
+    const hadFocus = calsEl.contains(document.activeElement) && document.activeElement.classList.contains('cell');
+
+    let html='';
+    if(MOBILE) html += '<div class="wd-sticky" aria-hidden="true">'+WD_SHORT.map(w=>`<span>${w}</span>`).join('')+'</div>';
+    [...Array(MONTHS_N).keys()].forEach(i=>{
+      const v = addMonths(S.view,i), id='cal-t-'+i;
+      html += `<div class="cal" data-month="${v.y}-${v.m}"><div class="cal-head">`;
+      if(i===0) html += `<button class="nav prev" type="button" data-nav="-1" aria-label="Poprzedni miesiąc"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+      html += `<div class="cal-title" id="${id}">${MONTHS[v.m-1]} ${v.y}</div>`;
+      if(i===MONTHS_N-1) html += `<button class="nav next" type="button" data-nav="1" aria-label="Następny miesiąc"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5L13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+      html += `</div><div class="grid" role="grid" aria-labelledby="${id}"><div role="row" style="display:contents">`;
+      WD_SHORT.forEach((w,j)=> html += `<div class="wd" role="columnheader" aria-label="${WD_FULL[j]}">${w}</div>`);
+      html += `</div>`;
+      const off = weekday({y:v.y,m:v.m,d:1}), n = daysIn(v.m,v.y);
+      for(let r=0;r<(MOBILE?Math.ceil((off+n)/7):6);r++){
+        html += `<div role="row" style="display:contents">`;
+        for(let c=0;c<7;c++){
+          const d = r*7+c-off+1;
+          if(d<1||d>n){ html += `<div class="cell empty" role="gridcell"></div>`; continue; }
+          const o={y:v.y,m:v.m,d}, k=key(o);
+          const inBand = lo && hi && k>=key(lo) && k<=key(hi);
+          const realSel = (F&&k===key(F)) || (T&&k===key(T)) || (F&&T&&k>key(F)&&k<key(T));
+          const cls=['cell'];
+          if(lo && k===key(lo)) cls.push('start');
+          if(hi && k===key(hi)) cls.push('end');
+          if(same(o,TODAY)) cls.push('today');
+          if(S.gridFocused && same(o,S.focusDate) && !S.hover) cls.push('kbd-hover');
+          const focusable = same(o,S.focusDate);
+          html += `<div class="${cls.join(' ')}" role="gridcell" data-k="${k}" tabindex="${focusable?0:-1}" aria-selected="${realSel?'true':'false'}"${same(o,TODAY)?' aria-current="date"':''} aria-label="${longLabel(o)}${same(o,TODAY)?', dzisiaj':''}">`;
+          if(inBand) html += `<div class="band${pv?' preview':''}"></div>`;
+          html += `<div class="day"><span>${d}</span></div></div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div></div>`;
+    });
+    S._internal=true; calsEl.innerHTML = html; S._internal=false;
+    if(MOBILE && S._scrollTo){
+      const el=calsEl.querySelector(`[data-month="${S._scrollTo.y}-${S._scrollTo.m}"]`);
+      if(el && calsEl.clientHeight){
+        const sticky=32;
+        const target=S._scrollTo;
+        calsEl.scrollTop = el.offsetTop-sticky-4;  // nazwa miesiąca tuż pod dniami tygodnia (przy końcu listy przeglądarka zatrzymuje się na dole)
+        S._scrollTo=null;
+        // Powtórzenie po ułożeniu arkusza (animacja wejścia, czcionki), żeby lista zawsze startowała na właściwym miesiącu
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{ const e2=calsEl.querySelector(`[data-month="${target.y}-${target.m}"]`); if(e2) calsEl.scrollTop=e2.offsetTop-sticky-4; }));
+      }
+    }
+    if(hadFocus || S._refocus){ const c = calsEl.querySelector('.cell[tabindex="0"]'); if(c){ S._internal=true; c.focus(); S._internal=false; } }
+    S._refocus=false;
+  }
+
+  function renderState(e){ if(!document.getElementById('stateList')) return;
+    const c=S.committed;
+    const rows=[
+      ['Zakres', PRESETS.find(p=>p.id===S.preset).label],
+      ['Data od', S.from ? fmt(S.from) : 'puste'],
+      ['Data do', S.to ? fmt(S.to) : 'puste'],
+      ['Następne kliknięcie', !S.from || (S.from&&S.to) ? 'ustawi datę od' : 'ustawi datę do (ten sam lub późniejszy dzień) albo nową datę od (wcześniejszy)'],
+      ['Błąd od', e.from||'—'],
+      ['Błąd do', e.to||'—'],
+      ['Wynik', c ? `${fmt(c.from)} – ${fmt(c.to)} (${PRESETS.find(p=>p.id===c.preset).label})` : 'brak'],
+    ];
+    $('#stateList').innerHTML = rows.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  }
+
+  /* ===== Wybór w kalendarzu (wzorzec Airbnb) ===== */
+  function pick(D){
+    const F=S.from, T=S.to;
+    let which;
+    const af=S.activeField; S.activeField=null;
+    if(af==='from'){ S.from={...D}; if(T && key(D)>key(T)) S.to=null; which='from'; }
+    else if(af==='to'){ if(F && key(D)>=key(F)){ S.to={...D}; which='to'; } else { S.from={...D}; S.to=null; which='from'; } }
+    else if(!F || (F && T)){ S.from={...D}; S.to=null; which='from'; }
+    else if(key(D)>key(F)){ S.to={...D}; which='to'; }
+    else if(key(D)<key(F)){ S.from={...D}; which='from'; }
+    else { S.to={...D}; which='to'; } // ten sam dzień = zakres jednodniowy
+    S.preset='custom';
+    if(S.from && S.to) S.submitted=false; // pełny zakres kończy pokazywanie błędów
+    S.focusDate={...D};
+    render();
+    announce(which==='to' ? `Wybrano datę końcową ${longLabel(D)}. Zakres ${fmt(S.from)} – ${fmt(S.to)}` : `Wybrano datę początkową ${longLabel(D)}. Wybierz datę końcową`);
+  }
+
+  // Kliknięcie lub Tab na polu: pole staje się aktywne, następna data z kalendarza trafi do niego
+  ['from','to'].forEach(f=>{
+    const activate=()=>{ if(S.activeField!==f){ S.activeField=f; render(); announce(f==='from'?'Wybierz w kalendarzu datę początkową':'Wybierz w kalendarzu datę końcową'); } };
+    inEl[f].addEventListener('focus', activate);
+    inEl[f].addEventListener('click', activate);
+  });
+  // X w polu: czyści tę datę, pole zostaje aktywne — następne kliknięcie w kalendarzu ją uzupełni
+  document.querySelectorAll('.ro-clear').forEach(b=>{
+    b.addEventListener('mousedown', e=>e.preventDefault());
+    b.addEventListener('click', ()=>{ const f=b.dataset.f; S[f]=null; S.preset='custom'; S.activeField=f; render(); inEl[f].focus(); announce(f==='from'?'Wyczyszczono datę początkową':'Wyczyszczono datę końcową'); });
+  });
+  calsEl.addEventListener('mousedown', e=>{ if(e.target.closest('.cell')) e.preventDefault(); });
+  // Kliknięcie poza polami i kalendarzem zdejmuje wskazanie pola
+  document.getElementById('dialog').addEventListener('mousedown', e=>{ if(!S.activeField || e.target.closest('.robox') || e.target.closest('#cals')) return; S.activeField=null; render(); });
+  calsEl.addEventListener('click', e=>{
+    const nav = e.target.closest('.nav');
+    if(nav){ S.view = addMonths(S.view, +nav.dataset.nav); render(); const r=addMonths(S.view,MONTHS_N-1); announce(MONTHS_N===1 ? `${MONTHS[S.view.m-1]} ${S.view.y}` : `${MONTHS[S.view.m-1]} ${S.view.y} – ${MONTHS[r.m-1]} ${r.y}`); return; }
+    const c = e.target.closest('.cell[data-k]');
+    if(c) pick(unkey(+c.dataset.k));
+  });
+  calsEl.addEventListener('mouseover', e=>{
+    const c = e.target.closest('.cell[data-k]');
+    const k = c ? +c.dataset.k : null, cur = S.hover ? key(S.hover) : null;
+    if(k!==cur){ S.hover = k ? unkey(k) : null; renderCalendar(); }
+  });
+  calsEl.addEventListener('mouseleave', ()=>{ if(S.hover){ S.hover=null; renderCalendar(); } });
+  calsEl.addEventListener('focusin', e=>{
+    if(e.target.classList.contains('cell') && !S.gridFocused){ S.gridFocused=true; renderCalendar(); }
+  });
+  calsEl.addEventListener('focusout', e=>{
+    if(S._internal) return;
+    const rel=e.relatedTarget;
+    if(e.target.classList.contains('cell') && !(rel && rel.classList && rel.classList.contains('cell'))){ S.gridFocused=false; renderCalendar(); }
+  });
+  calsEl.addEventListener('keydown', e=>{
+    if(!e.target.classList.contains('cell')) return;
+    const D=S.focusDate; let nd=null;
+    switch(e.key){
+      case 'ArrowLeft': nd=addDays(D,-1); break;
+      case 'ArrowRight': nd=addDays(D,1); break;
+      case 'ArrowUp': nd=addDays(D,-7); break;
+      case 'ArrowDown': nd=addDays(D,7); break;
+      case 'Home': nd=addDays(D,-weekday(D)); break;
+      case 'End': nd=addDays(D,6-weekday(D)); break;
+      case 'PageUp': { const v=addMonths({y:D.y,m:D.m}, e.shiftKey?-12:-1); nd={...v,d:Math.min(D.d,daysIn(v.m,v.y))}; break; }
+      case 'PageDown': { const v=addMonths({y:D.y,m:D.m}, e.shiftKey?12:1); nd={...v,d:Math.min(D.d,daysIn(v.m,v.y))}; break; }
+      case 'Enter': case ' ': e.preventDefault(); S._refocus=true; pick({...D}); return;
+      default: return;
+    }
+    e.preventDefault();
+    S.hover=null;
+    if(!isVisible(nd)){
+      if(key(nd) < key({y:S.view.y,m:S.view.m,d:1})) S.view={y:nd.y,m:nd.m};
+      else S.view = addMonths({y:nd.y,m:nd.m},-(MOBILE?0:MONTHS_N-1));
+    }
+    S.focusDate=nd; S._refocus=true; S.gridFocused=true;
+    renderCalendar();
+  });
+
+  /* ===== Gotowe zakresy ===== */
+  function applyPreset(id){
+    const p = PRESETS.find(x=>x.id===id);
+    S.preset=id; S.activeField=null;
+    if(p.range){
+      const [a,b]=p.range(); S.from=a; S.to=b; S.submitted=false;
+      S.view=initialView(a,b); S.focusDate={...a};
+      announce(`${p.label}: ${fmt(a)} – ${fmt(b)}`);
+    }
+    render();
+  }
+  chipsEl.addEventListener('click', e=>{ const c=e.target.closest('.chip'); if(c) applyPreset(c.dataset.id); });
+  chipsEl.addEventListener('keydown', e=>{
+    const list=[...chipsEl.querySelectorAll('.chip')];
+    const i=list.indexOf(e.target); if(i<0) return;
+    let j=null;
+    if(e.key==='ArrowRight'||e.key==='ArrowDown') j=(i+1)%list.length;
+    if(e.key==='ArrowLeft'||e.key==='ArrowUp') j=(i-1+list.length)%list.length;
+    if(j===null) return;
+    e.preventDefault(); applyPreset(list[j].dataset.id); list[j].focus();
+  });
+
+  /* ===== Stopka ===== */
+  $('#btnApply').addEventListener('click', ()=>{
+    // Pusty zakres = brak filtra: „Filtruj” usuwa filtr zamiast pokazywać błąd
+    if(!S.from && !S.to){
+      const had=!!S.committed; S.committed=null; close();
+      if(had){ const lp=$('#livePage'); lp.textContent=''; setTimeout(()=>lp.textContent='Usunięto filtr daty', 30); }
+      return;
+    }
+    S.submitted=true;
+    render();
+    const e=errors();
+    if(e.from || e.to){
+      // Fokus do kalendarza — to jedyne miejsce, gdzie można poprawić datę
+      S._refocus=true; renderCalendar();
+      announce(e.from ? 'Zaznacz w kalendarzu datę początkową i końcową' : 'Zaznacz w kalendarzu datę końcową');
+      return;
+    }
+    S.committed={from:S.from,to:S.to,preset:S.preset};
+    close();
+  });
+  $('#btnCancel').addEventListener('click', ()=>close());
+  $('#btnReset').addEventListener('click', ()=>{
+    S.from=null; S.to=null; S.preset='custom'; S.submitted=false; S.activeField=null;
+    S.view=initialView(null,null); S.focusDate={...TODAY};
+    render();
+    dialog.focus();   // fokus na oknie, nie na gotowym zakresie: bez obwódki fokusu na „Własny zakres dat” po otwarciu i po „Resetuj”
+    announce('Wyczyszczono zakres dat');
+  });
+
+  /* ===== Otwieranie i zamykanie ===== */
+  function open(){
+    const c=S.committed;
+    S.preset = c ? c.preset : 'custom'; S.activeField=null;
+    S.from = c ? c.from : null; S.to = c ? c.to : null;
+    S.submitted=false; S.hover=null; S.gridFocused=false;
+    const start = c ? c.from : TODAY;
+    S.view=initialView(c?c.from:null, c?c.to:null); S.focusDate={...start};
+    scrim.hidden=false; $('#page').setAttribute('aria-hidden','true');
+    render();
+    dialog.focus();   // fokus na oknie, nie na gotowym zakresie: bez obwódki fokusu na „Własny zakres dat” po otwarciu i po „Resetuj”
+  }
+  function close(){
+    if(MOBILE && !RM && !S._anim && !scrim.hidden){
+      S._anim=true; dialog.classList.add('sheet-out'); scrim.classList.add('scrim-out');
+      setTimeout(()=>{ dialog.classList.remove('sheet-out'); scrim.classList.remove('scrim-out'); dialog.style.removeProperty('--drag'); close(); S._anim=false; }, 200);
+      return;
+    }
+    scrim.hidden=true; $('#page').removeAttribute('aria-hidden');
+    renderPage(); renderState(errors());
+    $('#trigger').focus();
+  }
+  $('#trigger').addEventListener('click', open);
+
+  /* ===== Mobile: zmiana miesiąca gestem w bok + animacja przesunięcia ===== */
+  if(false){
+    const slideAnim = dir => { if(RM) return; const c=calsEl.querySelector('.cal'); if(c) c.animate([{transform:`translateX(${dir*48}px)`,opacity:0},{transform:'none',opacity:1}],{duration:200,easing:'ease-out'}); };
+    let sx=null, sy=null, swiped=false;
+    calsEl.addEventListener('pointerdown', e=>{ if(e.target.closest('.nav')) return; sx=e.clientX; sy=e.clientY; swiped=false; });
+    calsEl.addEventListener('pointermove', e=>{
+      if(sx===null) return;
+      const dx=e.clientX-sx, dy=e.clientY-sy;
+      if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)*1.5){
+        const dir = dx<0 ? 1 : -1; sx=null; swiped=true;
+        S.view=addMonths(S.view,dir); S.hover=null; render(); slideAnim(dir);
+        announce(`${MONTHS[S.view.m-1]} ${S.view.y}`);
+      }
+    });
+    const up=()=>{ sx=null; };
+    calsEl.addEventListener('pointerup', up); calsEl.addEventListener('pointercancel', up);
+    // Po geście nie traktujemy puszczenia palca jako kliknięcia w dzień
+    calsEl.addEventListener('click', e=>{ if(swiped){ e.stopImmediatePropagation(); e.preventDefault(); swiped=false; return; }
+      const nav=e.target.closest('.nav'); if(nav){ const d=+nav.dataset.nav; setTimeout(()=>slideAnim(d),0); } }, true);
+  }
+
+  /* ===== Mobile: zamykanie arkusza (X, tło, zsunięcie uchwytu) ===== */
+  if(MOBILE){
+    // Obramowanie przy przewijaniu: pod nagłówkiem po odjechaniu od góry, nad stopką gdy treść ciągnie się dalej
+    const bodyEl=calsEl, headEl=document.querySelector('.sheet-head'), footEl=document.querySelector('.footer');
+    const edges=()=>{ headEl.classList.toggle('scrolled', bodyEl.scrollTop>0); footEl.classList.toggle('more', bodyEl.scrollTop+bodyEl.clientHeight < bodyEl.scrollHeight-1); };
+    bodyEl.addEventListener('scroll', edges); new ResizeObserver(edges).observe(bodyEl); window.addEventListener('resize', edges);
+    $('#trigger').addEventListener('click', ()=>{ setTimeout(edges,0); });
+    $('#sheetClose').addEventListener('click', ()=>close());
+    // Tło zamyka arkusz tylko, gdy dotyk zaczął się i skończył na tle (zmiana układu w trakcie dotyku nie zamyka arkusza)
+    let downOnScrim=false;
+    scrim.addEventListener('pointerdown', e=>{ downOnScrim = e.target===scrim; });
+    scrim.addEventListener('click', e=>{ if(e.target===scrim && downOnScrim) close(); downOnScrim=false; });
+    const h=$('#sheetHandle'); let y0=null, dy=0;
+    h.addEventListener('pointerdown', e=>{ y0=e.clientY; dy=0; h.setPointerCapture(e.pointerId); dialog.style.animation='none'; });
+    h.addEventListener('pointermove', e=>{ if(y0===null) return; dy=Math.max(0,e.clientY-y0); dialog.style.transform=`translateY(${dy}px)`; });
+    const end=()=>{ if(y0===null) return; y0=null;
+      if(dy>80){ dialog.style.setProperty('--drag', dy+'px'); dialog.style.transform=''; dialog.style.animation=''; close(); }
+      else { dialog.style.transition='transform .2s ease-out'; dialog.style.transform=''; setTimeout(()=>{ dialog.style.transition=''; dialog.style.animation=''; },200); } };
+    h.addEventListener('pointerup', end); h.addEventListener('pointercancel', end);
+  }
+
+
+  dialog.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ e.preventDefault(); close(); return; }
+    if(e.key!=='Tab') return;
+    const all=[...dialog.querySelectorAll('button,[tabindex="0"]')].filter(el=>!el.hidden && el.offsetParent!==null && el.tabIndex>=0);
+    let i=all.indexOf(document.activeElement);
+    e.preventDefault();
+    if(i<0) i = e.shiftKey ? 0 : -1;
+    all[(i + (e.shiftKey?-1:1) + all.length) % all.length].focus();
+  });
+
+  /* ===== Punkt wejścia: przycisk Data + FilterTag + lista ===== */
+  const OPS = [
+    ['2026-11-19','Zakupy','−87,40 zł'],['2026-11-18','Paliwo','−212,15 zł'],['2026-11-15','Prąd','−318,60 zł'],
+    ['2026-11-10','Jedzenie','−64,90 zł'],['2026-11-03','Internet','−89,00 zł'],['2026-10-28','Woda','−142,30 zł'],
+    ['2026-10-20','Telefon','−129,99 zł'],['2026-10-12','Zakupy','−256,75 zł'],
+    ['2026-10-05','Paliwo','−198,40 zł'],['2026-09-30','Jedzenie','−52,00 zł']
+  ].map(([d,n,a])=>{const [y,m,dd]=d.split('-').map(Number); return {date:{y,m,d:dd},name:n,amount:a};});
+
+  function renderPage(){
+    const c=S.committed;
+    $('#ftag').hidden = !c;
+    if(c){
+      const val = key(c.from)===key(c.to) ? fmt(c.from) : `${fmt(c.from)} – ${fmt(c.to)}`;
+      $('#ftagValue').textContent = val;
+      $('#ftagX').setAttribute('aria-label', `Usuń filtr: data ${val}`);
+      $('#trigger').setAttribute('aria-label', `Data, wybrany zakres ${val}`);
+    } else $('#trigger').removeAttribute('aria-label');
+    const list = c ? OPS.filter(o=>key(o.date)>=key(c.from) && key(o.date)<=key(c.to)) : OPS;
+    $('#count').textContent = c ? `Wyświetlono ${list.length} z ${OPS.length} operacji` : `Wszystkie operacje: ${OPS.length}`;
+    $('#rows').innerHTML = list.length
+      ? list.map(o=>`<div><span class="date">${fmt(o.date)}</span><span class="name">${o.name}</span><span>${o.amount}</span></div>`).join('')
+      : `<div class="empty-row">Brak operacji w wybranym zakresie dat</div>`;
+  }
+  $('#ftagX').addEventListener('click', ()=>{
+    S.committed=null;
+    renderPage(); renderState(errors());
+    $('#trigger').focus();
+    const lp=$('#livePage'); lp.textContent=''; setTimeout(()=>lp.textContent='Usunięto filtr daty', 30);
+  });
+
+
+  renderPage(); renderState(errors());
+})();
+<\/script>
+</body>
+</html>
+</script>
+<script type="text/plain" id="src-k3"><!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DateRangeDialog — koncept 3 (podsumowanie w nagłówku)</title>
+<style>
+  :root{
+    --navy:#0a0a6b; --navy-ink:#13137a; --text:#1b1b2b; --muted:#6b6f80;
+    --line:#c9ccd6; --line-strong:#8a8fa3; --focus:#2b3fcf; --error:#e0173f;
+    --band:#cfd8ea; --band-preview:#e3e9f4; --hover:#f3e3f7;
+    --chip-on:#dfe5fd; --chip-on-line:#4b5bd6; --page:#f4f5f8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--text);background:var(--page)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* --- Strona w tle --- */
+  .page{max-width:960px;margin:0 auto;padding:40px 24px}
+  .page h1{font-size:26px;font-weight:600;margin:0 0 20px}
+  .toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px}
+  .trigger{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 12px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;font:inherit;font-size:15px;color:var(--text);cursor:pointer;transition:border-color .15s ease-in-out}
+  .trigger:hover{border-color:var(--navy)}
+  .trigger:focus-visible,.ftag-x:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .trigger svg{color:var(--navy)}
+  .ftag{display:inline-flex;align-items:center;gap:2px;height:32px;padding:0 4px 0 12px;border-radius:16px;background:var(--chip-on);font-size:14px;color:var(--text)}
+  .ftag[hidden]{display:none}
+  .ftag b{font-weight:600;margin-right:4px}
+  .ftag-x{width:28px;height:28px;border:0;border-radius:50%;background:none;color:var(--navy);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color .15s ease-in-out}
+  .ftag-x:hover{background:rgba(10,10,107,.1)}
+  .count{font-size:13px;color:var(--muted);margin:0 0 10px}
+  .rows .date{color:var(--muted);width:110px;flex:none}
+  .rows .name{flex:1}
+  .rows .empty-row{justify-content:center;color:var(--muted)}
+  .rows{background:#fff;border-radius:12px;padding:8px 0}
+  .rows div{display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #eef0f4;font-size:14px}
+  .rows div>span:last-child{white-space:nowrap;padding-left:16px}
+  .rows div:last-child{border-bottom:0}
+
+  /* --- Panel stanu --- */
+  .state{position:fixed;left:16px;top:16px;width:270px;background:#1c1d29;color:#e8e9f0;border-radius:12px;padding:14px 16px;font-size:12px;line-height:1.5;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .state h2{font-size:12px;margin:0 0 8px;color:#fff;letter-spacing:.02em;display:flex;justify-content:space-between;align-items:center}
+  .state button{background:none;border:0;color:#a9acc0;cursor:pointer;font:inherit;font-size:11px}
+  .state dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+  .state dt{color:#9a9db2}
+  .state dd{margin:0;font-family:ui-monospace,Menlo,monospace;word-break:break-word}
+  .state.collapsed dl{display:none}
+
+  /* --- Scrim i dialog --- */
+  .scrim{position:fixed;inset:0;background:rgba(20,20,32,.45);display:flex;align-items:center;justify-content:center;z-index:10;padding:20px}
+  .scrim[hidden]{display:none}
+  .dialog{background:#fff;border-radius:20px;width:656px;max-width:100%;box-shadow:0 12px 40px rgba(0,0,0,.18);outline:none}
+  .body{padding:28px 36px 24px}
+
+  /* Gotowe zakresy */
+  .chips{display:flex;flex-wrap:wrap;gap:8px 8px;margin-bottom:28px}
+  .chip{height:32px;padding:0 15px;border:1px solid var(--line);border-radius:16px;background:#fff;font:inherit;font-size:14px;color:var(--text);cursor:pointer;transition:background-color .15s ease-in-out,border-color .15s ease-in-out}
+  .chip:hover{border-color:var(--line-strong)}
+  .chip[aria-checked="true"]{background:var(--chip-on);border-color:var(--chip-on-line)}
+  .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+  /* Pola dat */
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px}
+  .label{display:block;font-size:13px;margin-bottom:6px}
+  .field{position:relative;display:flex;align-items:center;height:44px;border:1px solid var(--line-strong);border-radius:6px;padding:0 12px;background:#fff;cursor:text;transition:border-color .15s ease-in-out,box-shadow .15s ease-in-out}
+  .field:hover{border-color:var(--text)}
+  .field.invalid{border-color:var(--error)}
+  .field.active{border-color:var(--focus);box-shadow:inset 0 0 0 .5px var(--focus)}
+  .segs{display:flex;align-items:center;font-size:15px;font-variant-numeric:tabular-nums;flex:1;min-width:0}
+  .seg{padding:1px 1px;border-radius:3px;outline:none;caret-color:transparent}
+  .seg.ph{color:var(--muted)}
+  .sep{padding:0 1px}
+  .sep.ph{color:var(--muted)}
+  .field.active .seg.on{background:var(--navy);color:#fff}
+  .clear{display:none;width:28px;height:28px;margin-right:-6px;border:0;background:none;border-radius:50%;cursor:pointer;color:var(--navy);align-items:center;justify-content:center}
+  .clear:hover{background:var(--hover)}
+  .field.active.has-value .clear{display:flex}
+  .err{color:var(--error);font-size:13px;line-height:1.45;margin-top:6px;min-height:0}
+  .err:empty{display:none}
+
+  /* Kalendarz */
+  .cals{display:grid;grid-template-columns:280px 280px;justify-content:space-between}
+  .cal-head{display:flex;align-items:center;height:36px;margin-bottom:10px;position:relative}
+  .cal-title{flex:1;text-align:center;font-size:17px}
+  .nav{position:absolute;top:2px;width:32px;height:32px;border:0;background:none;border-radius:50%;cursor:pointer;color:var(--navy);display:flex;align-items:center;justify-content:center}
+  .nav:hover{background:var(--hover)}
+  .nav:focus-visible{outline:2px solid var(--focus)}
+  .nav.prev{left:0}.nav.next{right:0}
+  .grid{display:grid;grid-template-columns:repeat(7,40px);row-gap:4px}
+  .wd{height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted)}
+  .cell{position:relative;height:40px;display:flex;align-items:center;justify-content:center;outline:none}
+  .cell.empty{pointer-events:none}
+  .band{position:absolute;top:2px;bottom:2px;left:0;right:0;background:var(--band)}
+  .band.preview{background:var(--band-preview)}
+  .cell.start .band{left:50%}
+  .cell.end .band{right:50%}
+  .cell.start.end .band{display:none}
+  .day{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:15px;color:var(--navy-ink);cursor:pointer;transition:background-color .15s ease-in-out,color .15s ease-in-out}
+  .day::before{content:"";position:absolute;inset:-2px;border-radius:50%;background:var(--hover);opacity:0;transition:opacity .15s ease-in-out;z-index:-1}
+  .cell:hover .day::before,.cell.kbd-hover .day::before{opacity:1}
+  .day span{position:relative}
+  .cell.start .day,.cell.end .day{background:var(--navy);color:#fff}
+  .cell.start .day::before,.cell.end .day::before{display:none}
+  /* Dzisiejsza data: podpis „dziś” pod numerem dnia (desktop i mobile) */
+  .cell.today .day span{transform:translateY(-5px)}
+  .cell.today .day::after{content:"dziś";position:absolute;left:0;right:0;bottom:4px;font-size:10px;line-height:1;text-align:center;color:inherit}
+  .cell:focus-visible .day{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--focus)}
+  .day{z-index:1}
+
+  /* Stopka */
+  .footer{display:flex;align-items:center;gap:16px;border-top:1px solid #e3e5ea;padding:18px 32px 20px 36px}
+  .footer .spacer{flex:1}
+  .btn{height:40px;padding:0 20px;border-radius:6px;font:inherit;font-size:15px;cursor:pointer;transition:background-color .15s ease-in-out,border-color .15s ease-in-out}
+  .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  .btn-text{border:0;background:none;color:var(--navy);padding:0 4px;margin-left:-4px}
+  .btn-text:hover{text-decoration:underline}
+  .btn-sec{border:1px solid var(--line);background:#fff;color:var(--text)}
+  .btn-sec:hover{border-color:var(--line-strong)}
+  .btn-pri{border:1px solid var(--navy);background:var(--navy);color:#fff}
+  .btn-pri:hover{background:#1c1c86}
+
+  @media (min-width:1320px){ body.with-state .scrim{padding-left:300px} body.with-state .page{max-width:none;padding-left:326px;padding-right:40px} }
+  @media (max-width:1319px){ .state:not(.open){display:none} }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+  /* Koncept 2: pola tylko do odczytu */
+  .field.ro{width:100%;height:44px;padding:0 12px;font:inherit;font-size:15px;color:var(--text);background:#eef0f6;border:1px solid #c3c7d6;border-radius:6px;cursor:not-allowed;outline:none}
+  .field.ro::placeholder{color:var(--muted)}
+  .field.ro:hover{border-color:#c3c7d6}
+  .field.ro.invalid{border-color:var(--error)}
+  .dhead{display:flex;gap:48px;padding:20px 36px 18px;border-bottom:1px solid #e3e5ea}
+  .dh-col{min-width:170px}
+  .dh-label{font-size:13px;color:var(--muted);margin-bottom:4px}
+  .dh-value{font-size:17px;font-weight:600;color:var(--text)}
+  .dh-value.ph{font-weight:400;color:var(--muted)}
+  .dh-value.invalid{font-weight:400;color:var(--error)}
+  /* Następna data do wybrania (desktop i mobile): etykieta i podpowiedź w kolorze akcentu */
+  .dh-label.next{color:var(--focus);font-weight:600}
+  .dh-value.next{color:var(--focus);font-weight:500}
+  .variant{font-size:13px;color:var(--muted);margin:-12px 0 20px}
+
+  /* ===== Mobile: BottomSheet (szerokość 320–639) ===== */
+  .sheet-head{display:none}
+  @media (max-width:639px){
+    .page{padding:20px 16px}
+    .page h1{font-size:22px;margin-bottom:14px}
+    .variant{display:none}
+    .rows div{padding:12px 14px}
+    .rows .date{width:92px}
+    /* Lista na telefonie: nazwa i kwota w pierwszej linii, data pod nazwą (kwota nigdy się nie łamie) */
+    .rows div:not(.empty-row){display:grid;grid-template-columns:1fr auto;column-gap:12px;row-gap:2px;align-items:baseline}
+    .rows .name{grid-column:1;grid-row:1;min-width:0}
+    .rows div>span:last-child{grid-column:2;grid-row:1;white-space:nowrap;text-align:right;padding-left:0}
+    .rows .date{grid-column:1;grid-row:2;width:auto;font-size:13px}
+    .scrim{align-items:flex-end;padding:0}
+    .dialog{width:100%;max-width:600px;max-height:80vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;animation:sheetIn .3s ease-out;touch-action:pan-y}
+    .dialog.sheet-out{animation:sheetOut .2s ease-in forwards}
+    .scrim{animation:scrimIn .3s ease-out}
+    .scrim.scrim-out{animation:scrimOut .2s ease-in forwards}
+    .sheet-head{display:flex;align-items:center;position:relative;padding:20px 8px 4px 16px;flex:none}
+    .sheet-handle{position:absolute;top:0;left:50%;transform:translateX(-50%);width:96px;height:24px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
+    .sheet-handle::before{content:"";width:36px;height:4px;border-radius:2px;background:#c3c7d6}
+    .sheet-title{flex:1;font-size:18px;font-weight:600;margin:0}
+    .sheet-close{width:44px;height:44px;border:0;background:none;border-radius:50%;color:var(--navy);display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .sheet-close:focus-visible{outline:2px solid var(--focus)}
+    .dhead{padding:8px 16px 14px;gap:24px;border-radius:0}
+    .dh-col{min-width:0;flex:1}
+    .dh-value{font-size:16px}
+    .body{padding:12px 16px 16px;overflow:auto;flex:1;overscroll-behavior:contain}
+    .chips{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 20px;padding:0 16px 2px;scrollbar-width:none}
+    .chips::-webkit-scrollbar{display:none}
+    .chip{flex:none}
+    .fields{gap:12px;margin-bottom:20px}
+    .field{padding:0 10px}
+    .segs{font-size:15px}
+    .field.ro{font-size:14px;padding:0 10px}
+    .cals{grid-template-columns:1fr;justify-content:stretch}
+    .cal-head{margin-bottom:6px}
+    .grid{grid-template-columns:repeat(7,1fr)}
+    .cell{height:44px}
+    .day{width:40px;height:40px}
+    .footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom));flex:none;gap:12px}
+    #btnCancel{display:none}
+    #btnApply{min-width:140px}
+  }
+
+  /* ===== Mobile: zgodnie ze specyfikacją BottomSheet (przyciski stopki jeden pod drugim) ===== */
+  @media (max-width:639px){
+    .sheet-head{padding:20px 4px 8px 16px}
+    .footer{flex-direction:column;align-items:stretch;gap:8px;padding:12px 16px calc(16px + env(safe-area-inset-bottom))}
+    .footer .spacer{display:none}
+    #btnApply{order:-1;width:100%;min-width:0;height:44px}
+    #btnReset{width:100%;height:44px;margin:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--text);text-decoration:none}
+    #btnReset:hover{text-decoration:none;border-color:var(--line-strong)}
+    .nav{width:44px;height:44px;top:-4px}
+    .nav.prev{left:-8px}.nav.next{right:-8px}
+    .field.ro{text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+    .body{overflow-x:hidden}
+    .cal-head{position:sticky;top:-12px;z-index:3;background:#fff;padding-top:4px;height:44px}
+    .sheet-head{border-bottom:1px solid transparent;transition:border-color .15s ease-in-out}
+    .sheet-head.scrolled{border-bottom-color:#e3e5ea}
+    .footer{border-top:1px solid transparent;transition:border-color .15s ease-in-out}
+    .footer.more{border-top-color:#e3e5ea}
+  }
+  /* Najwęższe ekrany (320–359) */
+  @media (max-width:359px){
+    .fields{gap:8px}
+    .field{padding:0 8px}
+    .segs{font-size:14px}
+    .clear{width:24px;height:24px;margin-right:-4px}
+    .clear svg{width:18px;height:18px}
+    .day{width:36px;height:36px;font-size:14px}
+    .cell{height:40px}
+    .dhead{gap:12px}
+    .dh-value{font-size:15px}
+    .chip{font-size:13px;padding:0 12px}
+  }
+
+  /* ===== Mobile: stała wysokość 80% ekranu, przesuwanie miesięcy gestem ===== */
+  @media (max-width:639px){
+    .dialog{height:80vh;height:80dvh;max-height:none}
+    .cals{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  }
+
+  /* ===== Mobile: przewijana w pionie lista miesięcy, wybrane daty zawsze widoczne ===== */
+  .wd-sticky{display:none}
+  @media (max-width:639px){
+    .body{display:flex;flex-direction:column;overflow:hidden !important;padding-bottom:0}
+    .chips,.fields{flex:none}
+    .cals{display:block;flex:1;min-height:0;overflow-y:auto;position:relative;margin:0 -16px;padding:0 16px 16px;overscroll-behavior:contain;border-top:1px solid #e3e5ea}
+    .wd-sticky{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(7,1fr);height:32px;align-items:center;background:#fff;font-size:13px;color:var(--muted);text-align:center;margin:0 -16px;padding:0 16px;box-shadow:0 1px 0 #eef0f4}
+    .cals .nav{display:none}
+    .cals .cal-head{position:static !important;height:auto !important;margin:14px 0 6px;padding:0 !important;background:none}
+    .cals .cal-title{text-align:left;font-size:15px;font-weight:600}
+    .cals .grid .wd{display:none}
+    .fields{margin-bottom:14px}
+    .chips{margin-bottom:14px}
+  }
+
+  /* ===== Mobile: wybrane daty w nagłówku arkusza (wzorzec Material: mały tytuł + wybór jako główny tekst) ===== */
+  @media (max-width:639px){
+    .sheet-head{align-items:flex-start;padding:18px 4px 0 16px;border-bottom:0 !important}
+    .sheet-title{font-size:13px;font-weight:500;color:var(--muted);padding-top:12px}
+    .sheet-close{margin-top:-2px}
+    /* koncept 3: Od / Do jako część nagłówka */
+    .dhead{padding:2px 16px 14px;gap:16px;border-bottom:1px solid #e3e5ea}
+    .dhead ~ .body .chips{margin-top:12px}
+    .dh-label{font-size:12px;margin-bottom:2px}
+    .dh-value{font-size:18px;font-weight:600}
+    .dh-value.ph{font-size:18px;font-weight:400}
+    .dh-value.invalid{font-size:15px;font-weight:500}
+    /* koncepty 1 i 2: pola jako część nagłówka, nad gotowymi zakresami */
+    .body{padding-top:0}
+    .fields{order:-1;margin:0 -16px 12px;padding:2px 16px 14px;border-bottom:1px solid #e3e5ea}
+    .chips{margin-bottom:12px}
+  }
+
+  /* ===== Mobile: bez tytułu „Zakres dat” — wybór jest pierwszą treścią arkusza, krzyżyk w rogu ===== */
+  @media (max-width:639px){
+    /* Nagłówek wg specyfikacji (układ wyśrodkowany): 8 uchwyt 12, rząd z X (40), 16 odstępu, potem treść na całą szerokość */
+    .sheet-head{padding:0;height:20px;position:relative}
+    .sheet-title{display:none}
+    /* BottomSheet: przycisk zamknięcia przy górnej krawędzi tekstu (środek ikony = środek pierwszej linii), 16 px od prawej krawędzi */
+    /* Wg specyfikacji BottomSheet: X w kolumnie 16 px od prawej krawędzi, 16 px odstępu od treści; środek ikony na wysokości pierwszej linii tekstu */
+    /* X obok treści: ikona 16 px od prawej krawędzi, środek ikony na wysokości pierwszej linii tekstu */
+    .sheet-close{position:absolute;top:12px;right:6px;width:40px;height:40px;margin-top:0;z-index:5}
+    /* Uchwyt: obszar dotyku min. 44 px wysokości (specyfikacja), kreska bez zmian */
+    /* Uchwyt: 8 px od górnej krawędzi, 12 px do treści (specyfikacja); obszar dotyku 44 px */
+    .sheet-handle{height:44px;align-items:flex-start;padding-top:8px;box-sizing:border-box;z-index:4}
+    .dhead{padding:4px 52px 20px 16px}   /* 16 px odstępu od ikony X; 20 px pod treścią nagłówka */
+    .fields{padding-top:4px}
+    /* Kolumna przycisku zamknięcia: pod nim nic nie stoi (pola nie wchodzą pod X) */
+    .fields{padding-right:52px;padding-bottom:20px}   /* 16 px odstępu od ikony X; 20 px pod treścią nagłówka */
+  }
+
+  /* ===== Mobile: arkusz 90% ekranu, wskazanie następnej daty, „dziś” w kalendarzu ===== */
+  @media (max-width:639px){
+    .dialog{height:90vh;height:90dvh}
+    /* Następna data do wybrania: etykieta w kolorze akcentu (bez ramek) */
+    .label.next,.dh-label.next{color:var(--focus);font-weight:600}
+    .dh-value.next{color:var(--focus);font-weight:500}
+    /* Koncept 3: „Od” i „Do” obok siebie jak na desktopie; długi tekst łamie się do dwóch linii */
+    .dhead{flex-direction:row;gap:16px}
+    .dh-col{flex:1 1 0;min-width:0}
+    .dh-label{font-size:13px;margin-bottom:2px}
+    .dh-value,.dh-value.ph{font-size:17px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* zawsze jedna linia: nagłówek nie zmienia wysokości */
+    .dh-value.invalid{font-size:15px}
+  }
+
+  /* ===== Mobile: stopka w jednym rzędzie — wg specyfikacji BottomSheet przyciski stoją obok siebie, jeden pod drugim tylko gdy się nie mieszczą ===== */
+  @media (max-width:639px){
+    .footer{flex-direction:row;gap:8px}
+    #btnApply{order:2;flex:1}
+    #btnReset{order:1;flex:1}
+    #btnReset[hidden]{display:none}
+  }
+  @keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes sheetOut{from{transform:translateY(var(--drag,0))}to{transform:translateY(100%)}}
+  @keyframes scrimIn{from{background:rgba(20,20,32,0)}to{background:rgba(20,20,32,.45)}}
+  @keyframes scrimOut{from{background:rgba(20,20,32,.45)}to{background:rgba(20,20,32,0)}}
+  @media (prefers-reduced-motion: reduce){ .dialog,.scrim,.dialog.sheet-out,.scrim.scrim-out{animation:none !important} }
+  .dialog:focus{outline:none}
+</style>
+</head>
+<body>
+
+<main class="page" aria-hidden="false" id="page">
+  <h1>Historia operacji</h1>
+  <p class="variant">Koncept 3 — wybrany zakres jako tekst w nagłówku okna, wybór wyłącznie w kalendarzu</p>
+  <div class="toolbar">
+    <button class="trigger" id="trigger" type="button" aria-haspopup="dialog">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 8.5h14M7 2.75v3.5M13 2.75v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Data
+    </button>
+    <span class="ftag" id="ftag" hidden>
+      <b>Data:</b><span id="ftagValue"></span>
+      <button class="ftag-x" id="ftagX" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </span>
+  </div>
+  <p class="count" id="count" aria-live="polite"></p>
+  <div class="rows" id="rows" aria-label="Operacje"></div>
+  <div class="sr" aria-live="polite" id="livePage"></div>
+</main>
+
+
+<div class="scrim" id="scrim" hidden>
+  <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dlgTitle" tabindex="-1">
+    <h2 class="sr" id="dlgTitle">Wybierz zakres dat</h2>
+    <div class="sheet-head">
+      <div class="sheet-handle" id="sheetHandle" aria-hidden="true"></div>
+      <p class="sheet-title" aria-hidden="true">Zakres dat</p>
+      <button class="sheet-close" type="button" id="sheetClose" aria-label="Zamknij bez zmian">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="dhead">
+      <div class="dh-col"><div class="dh-label" id="lbl-from">Od</div><div class="dh-value ph" id="val-from" aria-labelledby="lbl-from">Wybierz datę</div></div>
+      <div class="dh-col"><div class="dh-label" id="lbl-to">Do</div><div class="dh-value ph" id="val-to" aria-labelledby="lbl-to">Wybierz datę</div></div>
+    </div>
+    <div class="body">
+      <div class="chips" id="chips" role="radiogroup" aria-label="Gotowe zakresy dat"></div>
+
+      <div class="cals" id="cals"></div>
+    </div>
+    <div class="footer">
+      <button class="btn btn-text" type="button" id="btnReset">Resetuj</button>
+      <span class="spacer"></span>
+      <button class="btn btn-sec" type="button" id="btnCancel">Anuluj</button>
+      <button class="btn btn-pri" type="button" id="btnApply">Filtruj</button>
+    </div>
+    <div class="sr" aria-live="polite" id="live"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* ===== Daty ===== */
+  const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+  const MONTHS_GEN = ['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
+  const WD_SHORT = ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
+  const WD_FULL = ['poniedziałek','wtorek','środa','czwartek','piątek','sobota','niedziela'];
+
+  const now = new Date();
+  const TODAY = {y:now.getFullYear(), m:now.getMonth()+1, d:now.getDate()};
+  const key = o => o.y*10000 + o.m*100 + o.d;
+  const unkey = k => ({y:Math.floor(k/10000), m:Math.floor(k/100)%100, d:k%100});
+  const fromJs = dt => ({y:dt.getFullYear(), m:dt.getMonth()+1, d:dt.getDate()});
+  const addDays = (o,n) => fromJs(new Date(o.y, o.m-1, o.d+n));
+  const daysIn = (m,y) => new Date(y, m, 0).getDate();
+  const addMonths = (v,n) => { const dt = new Date(v.y, v.m-1+n, 1); return {y:dt.getFullYear(), m:dt.getMonth()+1}; };
+  // Właściwość Direction: Past = bieżący miesiąc po prawej (historia), Future = bieżący po lewej (planowane)
+  const DIRECTION = /*DIRECTION*/'past';
+  // Mobile (320–639): arkusz od dołu i jeden miesiąc kalendarza
+  const MOBILE = window.matchMedia('(max-width:639px)').matches;
+  const MONTHS_SHORT_PL = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'];
+  const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Mobile: okno miesięcy przewijane w pionie (Past: 24 miesiące wstecz do bieżącego, Future: bieżący i 24 naprzód)
+  let MONTHS_N = MOBILE ? 25 : 2;
+  const WIN = { start: DIRECTION==='past' ? addMonths({y:TODAY.y,m:TODAY.m},-24) : {y:TODAY.y,m:TODAY.m} };
+  const mkey2 = v => v.y*12 + v.m;
+  function initialView(from,to){
+    if(MOBILE){ const t = from||to||TODAY; return {y:t.y,m:t.m}; }  // mobile: przewiń do miesiąca początku zakresu (albo bieżącego)
+    if(DIRECTION==='past'){ const end = to || from || TODAY; return addMonths({y:end.y,m:end.m},-(MOBILE?0:MONTHS_N-1)); }
+    const s0 = from || TODAY; return {y:s0.y, m:s0.m};
+  }
+  const same = (a,b) => !!(a && b && key(a)===key(b));
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = o => o ? `${pad(o.d)}.${pad(o.m)}.${o.y}` : '—';
+  const weekday = o => (new Date(o.y,o.m-1,o.d).getDay()+6)%7;
+  const longLabel = o => `${WD_FULL[weekday(o)]}, ${o.d} ${MONTHS_GEN[o.m-1]} ${o.y}`;
+
+  /* ===== Gotowe zakresy ===== */
+  const PRESETS = [
+    {id:'custom', label:'Własny zakres dat'},
+    {id:'last3',  label:'Ostatnie 3 dni',   range:()=>[addDays(TODAY,-2), TODAY]},
+    {id:'month',  label:'Bieżący miesiąc',  range:()=>[{y:TODAY.y,m:TODAY.m,d:1}, TODAY]},
+    {id:'last30', label:'Ostatnie 30 dni',  range:()=>[addDays(TODAY,-29), TODAY]},
+    {id:'next3',  label:'Przyszłe 3 dni',   range:()=>[TODAY, addDays(TODAY,2)]},
+    {id:'next30', label:'Przyszłe 30 dni',  range:()=>[TODAY, addDays(TODAY,29)]},
+  ];
+
+  const MSG_PICK = 'Zaznacz datę w kalendarzu';
+
+  /* ===== Stan ===== */
+  const S = {
+    preset:'custom', from:null, to:null,
+    view:initialView(null,null),
+    hover:null, gridFocused:false, focusDate:{...TODAY},
+    submitted:false, committed:null
+  };
+  const errors = () => ({
+    from: S.submitted && !S.from ? MSG_PICK : null,
+    to:   S.submitted && !S.to   ? MSG_PICK : null
+  });
+
+  const isVisible = o => { for(let i=0;i<MONTHS_N;i++){ const v=addMonths(S.view,i); if(o.y===v.y&&o.m===v.m) return true; } return false; };
+
+  /* ===== Elementy ===== */
+  const $ = s => document.querySelector(s);
+  const scrim=$('#scrim'), dialog=$('#dialog'), chipsEl=$('#chips'), calsEl=$('#cals'), live=$('#live');
+
+  PRESETS.forEach(p=>{
+    const b=document.createElement('button');
+    b.type='button'; b.className='chip'; b.textContent=p.label; b.dataset.id=p.id;
+    b.setAttribute('role','radio');
+    chipsEl.appendChild(b);
+  });
+
+  function announce(t){ live.textContent=''; setTimeout(()=>live.textContent=t, 30); }
+
+  /* ===== Render ===== */
+  function render(){
+    chipsEl.querySelectorAll('.chip').forEach(c=>{
+      const on = c.dataset.id===S.preset;
+      c.setAttribute('aria-checked', on);
+      c.tabIndex = on ? 0 : -1;
+    });
+    const e = errors();
+    ['from','to'].forEach(f=>{
+      const v=$('#val-'+f);
+      // Błąd zastępuje podpowiedź w tym samym miejscu — tekst się zmienia, nie tylko kolor
+      const next = !S.from ? 'from' : (!S.to ? 'to' : null);
+      const isNext = next===f && !e[f];
+      const ph = 'Wybierz datę';
+      // Mobile: skrócony miesiąc, żeby data zawsze mieściła się w jednej linii (pełna nazwa dla czytnika ekranu)
+      const full = S[f] ? `${S[f].d} ${MONTHS_GEN[S[f].m-1]} ${S[f].y}` : '';
+      v.textContent = S[f] ? (MOBILE ? `${S[f].d} ${MONTHS_SHORT_PL[S[f].m-1]} ${S[f].y}` : full) : (e[f] || ph);
+      if(full) v.setAttribute('aria-label', full); else v.removeAttribute('aria-label');
+      v.classList.toggle('ph', !S[f] && !e[f]);
+      v.classList.toggle('next', isNext && !S[f]);
+      $('#lbl-'+f).classList.toggle('next', isNext);
+      v.classList.toggle('invalid', !!e[f]);
+
+    });
+    renderCalendar();
+    $('#btnReset').hidden = !(S.from || S.to || S.preset!=='custom');
+    renderState(e);
+  }
+
+  // Podgląd zakresu: gdy jest początek bez końca, najechanie (lub fokus klawiatury) na późniejszy dzień
+  function previewRange(){
+    const H = S.hover || (S.gridFocused ? S.focusDate : null);
+    if(H && S.from && !S.to && key(H)>key(S.from)) return [S.from, H];
+    return null;
+  }
+
+  // Mobile: S.view wskazuje miesiąc do pokazania; lista zostaje, a kalendarz przewija się do tego miesiąca
+  function mobileWindow(){
+    const t=S.view;
+    if(t.y===WIN.start.y && t.m===WIN.start.m && !S._scrollTo) return;
+    if(!(t.y===WIN.start.y && t.m===WIN.start.m)){
+      if(mkey2(t)<mkey2(WIN.start)){ MONTHS_N += mkey2(WIN.start)-mkey2(t); WIN.start={y:t.y,m:t.m}; }
+      const last=addMonths(WIN.start,MONTHS_N-1); if(mkey2(t)>mkey2(last)) MONTHS_N += mkey2(t)-mkey2(last);
+      S._scrollTo={y:t.y,m:t.m}; S.view={...WIN.start};
+    }
+  }
+  function renderCalendar(){
+    if(MOBILE) mobileWindow();
+    const F=S.from, T=S.to, pv=previewRange();
+    const lo = pv ? pv[0] : F, hi = pv ? pv[1] : T;
+    if(!isVisible(S.focusDate)) S.focusDate = (F && isVisible(F)) ? {...F} : (isVisible(TODAY) ? {...TODAY} : {y:S.view.y,m:S.view.m,d:1});
+    const hadFocus = calsEl.contains(document.activeElement) && document.activeElement.classList.contains('cell');
+
+    let html='';
+    if(MOBILE) html += '<div class="wd-sticky" aria-hidden="true">'+WD_SHORT.map(w=>`<span>${w}</span>`).join('')+'</div>';
+    [...Array(MONTHS_N).keys()].forEach(i=>{
+      const v = addMonths(S.view,i), id='cal-t-'+i;
+      html += `<div class="cal" data-month="${v.y}-${v.m}"><div class="cal-head">`;
+      if(i===0) html += `<button class="nav prev" type="button" data-nav="-1" aria-label="Poprzedni miesiąc"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+      html += `<div class="cal-title" id="${id}">${MONTHS[v.m-1]} ${v.y}</div>`;
+      if(i===MONTHS_N-1) html += `<button class="nav next" type="button" data-nav="1" aria-label="Następny miesiąc"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5L13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+      html += `</div><div class="grid" role="grid" aria-labelledby="${id}"><div role="row" style="display:contents">`;
+      WD_SHORT.forEach((w,j)=> html += `<div class="wd" role="columnheader" aria-label="${WD_FULL[j]}">${w}</div>`);
+      html += `</div>`;
+      const off = weekday({y:v.y,m:v.m,d:1}), n = daysIn(v.m,v.y);
+      for(let r=0;r<(MOBILE?Math.ceil((off+n)/7):6);r++){
+        html += `<div role="row" style="display:contents">`;
+        for(let c=0;c<7;c++){
+          const d = r*7+c-off+1;
+          if(d<1||d>n){ html += `<div class="cell empty" role="gridcell"></div>`; continue; }
+          const o={y:v.y,m:v.m,d}, k=key(o);
+          const inBand = lo && hi && k>=key(lo) && k<=key(hi);
+          const realSel = (F&&k===key(F)) || (T&&k===key(T)) || (F&&T&&k>key(F)&&k<key(T));
+          const cls=['cell'];
+          if(lo && k===key(lo)) cls.push('start');
+          if(hi && k===key(hi)) cls.push('end');
+          if(same(o,TODAY)) cls.push('today');
+          if(S.gridFocused && same(o,S.focusDate) && !S.hover) cls.push('kbd-hover');
+          const focusable = same(o,S.focusDate);
+          html += `<div class="${cls.join(' ')}" role="gridcell" data-k="${k}" tabindex="${focusable?0:-1}" aria-selected="${realSel?'true':'false'}"${same(o,TODAY)?' aria-current="date"':''} aria-label="${longLabel(o)}${same(o,TODAY)?', dzisiaj':''}">`;
+          if(inBand) html += `<div class="band${pv?' preview':''}"></div>`;
+          html += `<div class="day"><span>${d}</span></div></div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div></div>`;
+    });
+    S._internal=true; calsEl.innerHTML = html; S._internal=false;
+    if(MOBILE && S._scrollTo){
+      const el=calsEl.querySelector(`[data-month="${S._scrollTo.y}-${S._scrollTo.m}"]`);
+      if(el && calsEl.clientHeight){
+        const sticky=32;
+        const target=S._scrollTo;
+        calsEl.scrollTop = el.offsetTop-sticky-4;  // nazwa miesiąca tuż pod dniami tygodnia (przy końcu listy przeglądarka zatrzymuje się na dole)
+        S._scrollTo=null;
+        // Powtórzenie po ułożeniu arkusza (animacja wejścia, czcionki), żeby lista zawsze startowała na właściwym miesiącu
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{ const e2=calsEl.querySelector(`[data-month="${target.y}-${target.m}"]`); if(e2) calsEl.scrollTop=e2.offsetTop-sticky-4; }));
+      }
+    }
+    if(hadFocus || S._refocus){ const c = calsEl.querySelector('.cell[tabindex="0"]'); if(c){ S._internal=true; c.focus(); S._internal=false; } }
+    S._refocus=false;
+  }
+
+  function renderState(e){ if(!document.getElementById('stateList')) return;
+    const c=S.committed;
+    const rows=[
+      ['Zakres', PRESETS.find(p=>p.id===S.preset).label],
+      ['Data od', S.from ? fmt(S.from) : 'puste'],
+      ['Data do', S.to ? fmt(S.to) : 'puste'],
+      ['Następne kliknięcie', !S.from || (S.from&&S.to) ? 'ustawi datę od' : 'ustawi datę do (ten sam lub późniejszy dzień) albo nową datę od (wcześniejszy)'],
+      ['Błąd od', e.from||'—'],
+      ['Błąd do', e.to||'—'],
+      ['Wynik', c ? `${fmt(c.from)} – ${fmt(c.to)} (${PRESETS.find(p=>p.id===c.preset).label})` : 'brak'],
+    ];
+    $('#stateList').innerHTML = rows.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  }
+
+  /* ===== Wybór w kalendarzu (wzorzec Airbnb) ===== */
+  function pick(D){
+    const F=S.from, T=S.to;
+    let which;
+    if(!F || (F && T)){ S.from={...D}; S.to=null; which='from'; }
+    else if(key(D)>key(F)){ S.to={...D}; which='to'; }
+    else if(key(D)<key(F)){ S.from={...D}; which='from'; }
+    else { S.to={...D}; which='to'; } // ten sam dzień = zakres jednodniowy
+    S.preset='custom';
+    if(S.from && S.to) S.submitted=false; // pełny zakres kończy pokazywanie błędów
+    S.focusDate={...D};
+    render();
+    announce(which==='to' ? `Wybrano datę końcową ${longLabel(D)}. Zakres ${fmt(S.from)} – ${fmt(S.to)}` : `Wybrano datę początkową ${longLabel(D)}. Wybierz datę końcową`);
+  }
+
+  calsEl.addEventListener('mousedown', e=>{ if(e.target.closest('.cell')) e.preventDefault(); });
+  calsEl.addEventListener('click', e=>{
+    const nav = e.target.closest('.nav');
+    if(nav){ S.view = addMonths(S.view, +nav.dataset.nav); render(); const r=addMonths(S.view,MONTHS_N-1); announce(MONTHS_N===1 ? `${MONTHS[S.view.m-1]} ${S.view.y}` : `${MONTHS[S.view.m-1]} ${S.view.y} – ${MONTHS[r.m-1]} ${r.y}`); return; }
+    const c = e.target.closest('.cell[data-k]');
+    if(c) pick(unkey(+c.dataset.k));
+  });
+  calsEl.addEventListener('mouseover', e=>{
+    const c = e.target.closest('.cell[data-k]');
+    const k = c ? +c.dataset.k : null, cur = S.hover ? key(S.hover) : null;
+    if(k!==cur){ S.hover = k ? unkey(k) : null; renderCalendar(); }
+  });
+  calsEl.addEventListener('mouseleave', ()=>{ if(S.hover){ S.hover=null; renderCalendar(); } });
+  calsEl.addEventListener('focusin', e=>{
+    if(e.target.classList.contains('cell') && !S.gridFocused){ S.gridFocused=true; renderCalendar(); }
+  });
+  calsEl.addEventListener('focusout', e=>{
+    if(S._internal) return;
+    const rel=e.relatedTarget;
+    if(e.target.classList.contains('cell') && !(rel && rel.classList && rel.classList.contains('cell'))){ S.gridFocused=false; renderCalendar(); }
+  });
+  calsEl.addEventListener('keydown', e=>{
+    if(!e.target.classList.contains('cell')) return;
+    const D=S.focusDate; let nd=null;
+    switch(e.key){
+      case 'ArrowLeft': nd=addDays(D,-1); break;
+      case 'ArrowRight': nd=addDays(D,1); break;
+      case 'ArrowUp': nd=addDays(D,-7); break;
+      case 'ArrowDown': nd=addDays(D,7); break;
+      case 'Home': nd=addDays(D,-weekday(D)); break;
+      case 'End': nd=addDays(D,6-weekday(D)); break;
+      case 'PageUp': { const v=addMonths({y:D.y,m:D.m}, e.shiftKey?-12:-1); nd={...v,d:Math.min(D.d,daysIn(v.m,v.y))}; break; }
+      case 'PageDown': { const v=addMonths({y:D.y,m:D.m}, e.shiftKey?12:1); nd={...v,d:Math.min(D.d,daysIn(v.m,v.y))}; break; }
+      case 'Enter': case ' ': e.preventDefault(); S._refocus=true; pick({...D}); return;
+      default: return;
+    }
+    e.preventDefault();
+    S.hover=null;
+    if(!isVisible(nd)){
+      if(key(nd) < key({y:S.view.y,m:S.view.m,d:1})) S.view={y:nd.y,m:nd.m};
+      else S.view = addMonths({y:nd.y,m:nd.m},-(MOBILE?0:MONTHS_N-1));
+    }
+    S.focusDate=nd; S._refocus=true; S.gridFocused=true;
+    renderCalendar();
+  });
+
+  /* ===== Gotowe zakresy ===== */
+  function applyPreset(id){
+    const p = PRESETS.find(x=>x.id===id);
+    S.preset=id;
+    if(p.range){
+      const [a,b]=p.range(); S.from=a; S.to=b; S.submitted=false;
+      S.view=initialView(a,b); S.focusDate={...a};
+      announce(`${p.label}: ${fmt(a)} – ${fmt(b)}`);
+    }
+    render();
+  }
+  chipsEl.addEventListener('click', e=>{ const c=e.target.closest('.chip'); if(c) applyPreset(c.dataset.id); });
+  chipsEl.addEventListener('keydown', e=>{
+    const list=[...chipsEl.querySelectorAll('.chip')];
+    const i=list.indexOf(e.target); if(i<0) return;
+    let j=null;
+    if(e.key==='ArrowRight'||e.key==='ArrowDown') j=(i+1)%list.length;
+    if(e.key==='ArrowLeft'||e.key==='ArrowUp') j=(i-1+list.length)%list.length;
+    if(j===null) return;
+    e.preventDefault(); applyPreset(list[j].dataset.id); list[j].focus();
+  });
+
+  /* ===== Stopka ===== */
+  $('#btnApply').addEventListener('click', ()=>{
+    // Pusty zakres = brak filtra: „Filtruj” usuwa filtr zamiast pokazywać błąd
+    if(!S.from && !S.to){
+      const had=!!S.committed; S.committed=null; close();
+      if(had){ const lp=$('#livePage'); lp.textContent=''; setTimeout(()=>lp.textContent='Usunięto filtr daty', 30); }
+      return;
+    }
+    S.submitted=true;
+    render();
+    const e=errors();
+    if(e.from || e.to){
+      // Fokus do kalendarza — to jedyne miejsce, gdzie można poprawić datę
+      S._refocus=true; renderCalendar();
+      announce(e.from ? 'Zaznacz w kalendarzu datę początkową i końcową' : 'Zaznacz w kalendarzu datę końcową');
+      return;
+    }
+    S.committed={from:S.from,to:S.to,preset:S.preset};
+    close();
+  });
+  $('#btnCancel').addEventListener('click', ()=>close());
+  $('#btnReset').addEventListener('click', ()=>{
+    S.from=null; S.to=null; S.preset='custom'; S.submitted=false;
+    S.view=initialView(null,null); S.focusDate={...TODAY};
+    render();
+    dialog.focus();   // fokus na oknie, nie na gotowym zakresie: bez obwódki fokusu na „Własny zakres dat” po otwarciu i po „Resetuj”
+    announce('Wyczyszczono zakres dat');
+  });
+
+  /* ===== Otwieranie i zamykanie ===== */
+  function open(){
+    const c=S.committed;
+    S.preset = c ? c.preset : 'custom';
+    S.from = c ? c.from : null; S.to = c ? c.to : null;
+    S.submitted=false; S.hover=null; S.gridFocused=false;
+    const start = c ? c.from : TODAY;
+    S.view=initialView(c?c.from:null, c?c.to:null); S.focusDate={...start};
+    scrim.hidden=false; $('#page').setAttribute('aria-hidden','true');
+    render();
+    dialog.focus();   // fokus na oknie, nie na gotowym zakresie: bez obwódki fokusu na „Własny zakres dat” po otwarciu i po „Resetuj”
+  }
+  function close(){
+    if(MOBILE && !RM && !S._anim && !scrim.hidden){
+      S._anim=true; dialog.classList.add('sheet-out'); scrim.classList.add('scrim-out');
+      setTimeout(()=>{ dialog.classList.remove('sheet-out'); scrim.classList.remove('scrim-out'); dialog.style.removeProperty('--drag'); close(); S._anim=false; }, 200);
+      return;
+    }
+    scrim.hidden=true; $('#page').removeAttribute('aria-hidden');
+    renderPage(); renderState(errors());
+    $('#trigger').focus();
+  }
+  $('#trigger').addEventListener('click', open);
+
+  /* ===== Mobile: zmiana miesiąca gestem w bok + animacja przesunięcia ===== */
+  if(false){
+    const slideAnim = dir => { if(RM) return; const c=calsEl.querySelector('.cal'); if(c) c.animate([{transform:`translateX(${dir*48}px)`,opacity:0},{transform:'none',opacity:1}],{duration:200,easing:'ease-out'}); };
+    let sx=null, sy=null, swiped=false;
+    calsEl.addEventListener('pointerdown', e=>{ if(e.target.closest('.nav')) return; sx=e.clientX; sy=e.clientY; swiped=false; });
+    calsEl.addEventListener('pointermove', e=>{
+      if(sx===null) return;
+      const dx=e.clientX-sx, dy=e.clientY-sy;
+      if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)*1.5){
+        const dir = dx<0 ? 1 : -1; sx=null; swiped=true;
+        S.view=addMonths(S.view,dir); S.hover=null; render(); slideAnim(dir);
+        announce(`${MONTHS[S.view.m-1]} ${S.view.y}`);
+      }
+    });
+    const up=()=>{ sx=null; };
+    calsEl.addEventListener('pointerup', up); calsEl.addEventListener('pointercancel', up);
+    // Po geście nie traktujemy puszczenia palca jako kliknięcia w dzień
+    calsEl.addEventListener('click', e=>{ if(swiped){ e.stopImmediatePropagation(); e.preventDefault(); swiped=false; return; }
+      const nav=e.target.closest('.nav'); if(nav){ const d=+nav.dataset.nav; setTimeout(()=>slideAnim(d),0); } }, true);
+  }
+
+  /* ===== Mobile: zamykanie arkusza (X, tło, zsunięcie uchwytu) ===== */
+  if(MOBILE){
+    // Obramowanie przy przewijaniu: pod nagłówkiem po odjechaniu od góry, nad stopką gdy treść ciągnie się dalej
+    const bodyEl=calsEl, headEl=document.querySelector('.sheet-head'), footEl=document.querySelector('.footer');
+    const edges=()=>{ headEl.classList.toggle('scrolled', bodyEl.scrollTop>0); footEl.classList.toggle('more', bodyEl.scrollTop+bodyEl.clientHeight < bodyEl.scrollHeight-1); };
+    bodyEl.addEventListener('scroll', edges); new ResizeObserver(edges).observe(bodyEl); window.addEventListener('resize', edges);
+    $('#trigger').addEventListener('click', ()=>{ setTimeout(edges,0); });
+    $('#sheetClose').addEventListener('click', ()=>close());
+    // Tło zamyka arkusz tylko, gdy dotyk zaczął się i skończył na tle (zmiana układu w trakcie dotyku nie zamyka arkusza)
+    let downOnScrim=false;
+    scrim.addEventListener('pointerdown', e=>{ downOnScrim = e.target===scrim; });
+    scrim.addEventListener('click', e=>{ if(e.target===scrim && downOnScrim) close(); downOnScrim=false; });
+    const h=$('#sheetHandle'); let y0=null, dy=0;
+    h.addEventListener('pointerdown', e=>{ y0=e.clientY; dy=0; h.setPointerCapture(e.pointerId); dialog.style.animation='none'; });
+    h.addEventListener('pointermove', e=>{ if(y0===null) return; dy=Math.max(0,e.clientY-y0); dialog.style.transform=`translateY(${dy}px)`; });
+    const end=()=>{ if(y0===null) return; y0=null;
+      if(dy>80){ dialog.style.setProperty('--drag', dy+'px'); dialog.style.transform=''; dialog.style.animation=''; close(); }
+      else { dialog.style.transition='transform .2s ease-out'; dialog.style.transform=''; setTimeout(()=>{ dialog.style.transition=''; dialog.style.animation=''; },200); } };
+    h.addEventListener('pointerup', end); h.addEventListener('pointercancel', end);
+  }
+
+
+  dialog.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ e.preventDefault(); close(); return; }
+    if(e.key!=='Tab') return;
+    const all=[...dialog.querySelectorAll('button,[tabindex="0"]')].filter(el=>!el.hidden && el.offsetParent!==null && el.tabIndex>=0);
+    let i=all.indexOf(document.activeElement);
+    e.preventDefault();
+    if(i<0) i = e.shiftKey ? 0 : -1;
+    all[(i + (e.shiftKey?-1:1) + all.length) % all.length].focus();
+  });
+
+  /* ===== Punkt wejścia: przycisk Data + FilterTag + lista ===== */
+  const OPS = [
+    ['2026-11-19','Zakupy','−87,40 zł'],['2026-11-18','Paliwo','−212,15 zł'],['2026-11-15','Prąd','−318,60 zł'],
+    ['2026-11-10','Jedzenie','−64,90 zł'],['2026-11-03','Internet','−89,00 zł'],['2026-10-28','Woda','−142,30 zł'],
+    ['2026-10-20','Telefon','−129,99 zł'],['2026-10-12','Zakupy','−256,75 zł'],
+    ['2026-10-05','Paliwo','−198,40 zł'],['2026-09-30','Jedzenie','−52,00 zł']
+  ].map(([d,n,a])=>{const [y,m,dd]=d.split('-').map(Number); return {date:{y,m,d:dd},name:n,amount:a};});
+
+  function renderPage(){
+    const c=S.committed;
+    $('#ftag').hidden = !c;
+    if(c){
+      const val = key(c.from)===key(c.to) ? fmt(c.from) : `${fmt(c.from)} – ${fmt(c.to)}`;
+      $('#ftagValue').textContent = val;
+      $('#ftagX').setAttribute('aria-label', `Usuń filtr: data ${val}`);
+      $('#trigger').setAttribute('aria-label', `Data, wybrany zakres ${val}`);
+    } else $('#trigger').removeAttribute('aria-label');
+    const list = c ? OPS.filter(o=>key(o.date)>=key(c.from) && key(o.date)<=key(c.to)) : OPS;
+    $('#count').textContent = c ? `Wyświetlono ${list.length} z ${OPS.length} operacji` : `Wszystkie operacje: ${OPS.length}`;
+    $('#rows').innerHTML = list.length
+      ? list.map(o=>`<div><span class="date">${fmt(o.date)}</span><span class="name">${o.name}</span><span>${o.amount}</span></div>`).join('')
+      : `<div class="empty-row">Brak operacji w wybranym zakresie dat</div>`;
+  }
+  $('#ftagX').addEventListener('click', ()=>{
+    S.committed=null;
+    renderPage(); renderState(errors());
+    $('#trigger').focus();
+    const lp=$('#livePage'); lp.textContent=''; setTimeout(()=>lp.textContent='Usunięto filtr daty', 30);
+  });
+
+
+  renderPage(); renderState(errors());
+})();
+<\/script>
+</body>
+</html>
+</script>
+<script>
+(function(){
+  let current='k3', dir='past', bp='desktop';
+  const frame=document.getElementById('panel');
+  function source(k){
+    return document.getElementById('src-'+k).textContent.split('<\\/script').join('</'+'script').replace("/*DIRECTION*/'past'", "'"+dir+"'");
+  }
+  function show(k, focusTab){
+    current=k;
+    document.querySelectorAll('[role=tab]').forEach(t=>{ const on=t.dataset.k===k; t.setAttribute('aria-selected',on); t.tabIndex=on?0:-1; if(on&&focusTab) t.focus(); });
+    frame.setAttribute('aria-labelledby','t-'+k); frame.srcdoc = source(k);
+    try{ history.replaceState(null,'','#'+k); }catch(e){}
+  }
+  function setBp(v){
+    bp=v;
+    document.querySelectorAll('[data-bp]').forEach(b=>{ const on=b.dataset.bp===v; b.setAttribute('aria-checked',on); b.tabIndex=on?0:-1; });
+    document.querySelector('main').classList.toggle('mobile', v!=='desktop');
+    document.querySelector('main').classList.toggle('m320', v==='mobile320');
+    document.getElementById('frameCap').textContent = v==='mobile320' ? 'Szerokość 320 px z paskami Safari z aktualnego iOS (układ Compact): ekran 320 × 568, widok strony ok. 320 × 492 · arkusz 90% = ok. 443 px. Żaden iPhone z aktualnym iOS nie ma 320 px — ta szerokość sprawdza Reflow (WCAG 1.4.10) i małe Androidy.' : v==='mobile' ? 'iPhone 13, Safari w aktualnym iOS (układ Compact): ekran 390 × 844, widok strony ok. 390 × 707 · arkusz 90% = ok. 636 px' : '';
+    frame.srcdoc = source(current);
+  }
+  document.querySelectorAll('[data-bp]').forEach(b=>b.addEventListener('click',()=>setBp(b.dataset.bp)));
+  document.querySelector('#bpWrap .seg').addEventListener('keydown',e=>{
+    if(!['ArrowLeft','ArrowRight'].includes(e.key)) return; e.preventDefault();
+    const order=['desktop','mobile','mobile320']; const i=order.indexOf(bp);
+    setBp(order[(i+(e.key==='ArrowRight'?1:2))%3]); document.querySelector(`[data-bp="${bp}"]`).focus();
+  });
+  function setDir(d){
+    dir=d;
+    document.querySelectorAll('[data-dir]').forEach(b=>{ const on=b.dataset.dir===d; b.setAttribute('aria-checked',on); b.tabIndex=on?0:-1; });
+    frame.srcdoc = source(current);
+  }
+  const tabs=[...document.querySelectorAll('[role=tab]')];
+  tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.k)));
+  document.querySelector('[role=tablist]').addEventListener('keydown',e=>{
+    const i=tabs.findIndex(t=>t.dataset.k===current); let j=null;
+    if(e.key==='ArrowRight') j=(i+1)%tabs.length;
+    if(e.key==='ArrowLeft') j=(i-1+tabs.length)%tabs.length;
+    if(e.key==='Home') j=0; if(e.key==='End') j=tabs.length-1;
+    if(j===null) return; e.preventDefault(); show(tabs[j].dataset.k,true);
+  });
+  document.querySelectorAll('[data-dir]').forEach(b=>b.addEventListener('click',()=>setDir(b.dataset.dir)));
+  document.querySelector('#dirWrap .seg').addEventListener('keydown',e=>{
+    if(!['ArrowLeft','ArrowRight'].includes(e.key)) return; e.preventDefault();
+    setDir(dir==='past'?'future':'past'); document.querySelector(`[data-dir="${dir}"]`).focus();
+  });
+  setDir('past');
+  document.querySelectorAll('[data-bp]').forEach(b=>{ const on=b.dataset.bp===bp; b.setAttribute('aria-checked',on); b.tabIndex=on?0:-1; });
+  const h=(location.hash||'').slice(1);
+  show(['k1','k2','k3'].includes(h)?h:'k3');
+})();
+</script>
+</body>
+</html>
